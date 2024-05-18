@@ -1,5 +1,5 @@
 /**
- * A library to transform JSON into a class with private properties and accessor methods.
+ * Dynamically transform a JSON into a Class with private properties and accessor methods at runtime.
  * @author: Kapil Kashyap
  */
 
