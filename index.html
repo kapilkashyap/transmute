@@ -20,10 +20,19 @@
 			}
 			.actionContainer {
 				display: flex;
+				justify-content: space-between;
+				align-items: center;
+			}
+			.actionContainer .configurations {
+				display: flex;
+				gap: 20px;
+			}
+			.actionContainer .actions {
+				display: flex;
 				justify-content: flex-end;
 				gap: 20px;
 			}
-			.actionContainer button {
+			.actionContainer .actions button {
 				padding: 5px 10px;
 				cursor: pointer;
 			}
@@ -36,8 +45,21 @@
 				<textarea class="jsonInput"></textarea>
 			</div>
 			<div class="actionContainer">
-				<button id="formatJSON">Format JSON</button>
-				<button id="transmuteJSON">Transmute JSON</button>
+				<div class="configurations">
+					<label>Configuration:</label>
+					<label>
+						<input id="is-read-only" type="checkbox" name="readOnly" />
+						Read only
+					</label>
+					<label>
+						<input id="is-deep" type="checkbox" name="deep" checked />
+						Deep
+					</label>
+				</div>
+				<div class="actions">
+					<button id="formatJSON">Format JSON</button>
+					<button id="transmuteJSON">Transmute JSON</button>
+				</div>
 			</div>
 		</div>
 		<script type="module" src="./index.js" defer></script>
