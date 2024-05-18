@@ -15,6 +15,7 @@
     "lint": "eslint . --ext .ts",
     "minify": "esbuild ./dist/transmute.js --minify --outdir=./dist --out-extension:.js=.min.js",
     "build": "npm run lint && tsc && npm run minify",
+    "build:dev": "npm run lint && tsc",
     "build:test": "npm run build && npm run test",
     "build:scratch": "npm install && npm run build:test",
     "build:watch": "npm run lint && tsc --watch"
