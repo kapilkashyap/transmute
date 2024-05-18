@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<title>transmuteJS</title>
+		<style>
+			.mainContainer {
+				display: flex;
+				flex-direction: column;
+				height: 720px;
+				padding: 10px;
+				gap: 10px;
+			}
+			.inputContainer {
+				display: flex;
+				flex-direction: column;
+			}
+			.inputContainer .jsonInput {
+				height: 720px;
+				resize: none;
+			}
+			.actionContainer {
+				display: flex;
+				justify-content: flex-end;
+				gap: 20px;
+			}
+			.actionContainer button {
+				padding: 5px 10px;
+				cursor: pointer;
+			}
+		</style>
+	</head>
+	<body>
+		<div class="mainContainer">
+			<div class="inputContainer">
+				<label>JSON:</label>
+				<textarea class="jsonInput"></textarea>
+			</div>
+			<div class="actionContainer">
+				<button id="formatJSON">Format JSON</button>
+				<button id="transmuteJSON">Transmute JSON</button>
+			</div>
+		</div>
+		<script type="module" src="./index.js" defer></script>
+	</body>
+</html>

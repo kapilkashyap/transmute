@@ -1,0 +1,49 @@
+{
+  "name": "transmute",
+  "version": "1.0.0",
+  "description": "Dynamically transform a JSON into a Class with private properties and accessor methods at runtime",
+  "main": "dist/index.js",
+  "types": "dist/types/index.d.js",
+  "files": [
+    "/dist"
+  ],
+  "scripts": {
+    "clean:node-modules": "rd /s /q node_modules",
+    "clean:dist": "rd /s /q dist",
+    "clean:all": "npm run clean:dist && npm run clean:node-modules",
+    "test": "jest",
+    "lint": "eslint . --ext .ts",
+    "minify": "esbuild ./dist/transmute.js --minify --outdir=./dist --out-extension:.js=.min.js",
+    "build": "npm run lint && tsc && npm run minify",
+    "build:test": "npm run build && npm run test",
+    "build:scratch": "npm install && npm run build:test",
+    "build:watch": "npm run lint && tsc --watch"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kapilkashyap/transmute.git"
+  },
+  "keywords": [
+    "JavaScript",
+    "transmute",
+    "pojo"
+  ],
+  "author": "Kapil Kashyap",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/kapilkashyap/transmute/issues"
+  },
+  "homepage": "https://github.com/kapilkashyap/transmute#readme",
+  "devDependencies": {
+    "@babel/preset-env": "^7.23.6",
+    "@typescript-eslint/eslint-plugin": "^6.15.0",
+    "@typescript-eslint/parser": "^6.15.0",
+    "babel-jest": "^29.7.0",
+    "esbuild": "0.17.18",
+    "eslint": "^8.56.0",
+    "eslint-plugin-prettier": "^5.1.2",
+    "jest": "^29.7.0",
+    "ts-jest": "^29.0.3",
+    "typescript": "^5.3.3"
+  }
+}
