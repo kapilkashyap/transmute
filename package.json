@@ -2,8 +2,9 @@
   "name": "transmute",
   "version": "1.0.0",
   "description": "Dynamically transform a JSON into a Class with private properties and accessor methods at runtime",
-  "main": "dist/index.js",
-  "types": "dist/types/index.d.js",
+  "main": "./dist/transmute.js",
+  "module": "./dist/transmute.mjs",
+  "types": "./dist/transmute.d.ts",
   "files": [
     "/dist"
   ],
@@ -14,11 +15,11 @@
     "test": "jest",
     "lint": "eslint . --ext .ts",
     "minify": "esbuild ./dist/transmute.js --minify --outdir=./dist --out-extension:.js=.min.js",
-    "build": "npm run lint && tsc && npm run minify",
-    "build:dev": "npm run lint && tsc",
+    "bundler:esbuild": "node ./esbuild.config.mjs",
+    "build": "npm run lint && tsc && npm run bundler:esbuild -- --format=cjs,esm,iife --minify=true",
+    "build:dev": "npm run lint && tsc && npm run bundler:esbuild -- --format=cjs,esm,iife",
     "build:test": "npm run build && npm run test",
-    "build:scratch": "npm install && npm run build:test",
-    "build:watch": "npm run lint && tsc --watch"
+    "build:scratch": "npm install && npm run build:test"
   },
   "repository": {
     "type": "git",
