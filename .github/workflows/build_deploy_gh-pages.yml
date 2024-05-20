@@ -22,7 +22,14 @@ jobs:
           npm install
           npm run build
 
+      - name: Generate deployment folder
+        run: |
+          mkdir build 
+          mv index.html build/index.html
+          mv index.js build/index.js
+          mv /dist build/dist
+
       - name: Deploy 🚀
         uses: JamesIves/github-pages-deploy-action@v4
         with:
-          folder: ['./dist', 'index.js', 'index.html']
+          folder: build
