@@ -1,5 +1,5 @@
 import store from './data/store.js';
-import { memorySizeOf, transmute } from './dist/transmute.js';
+import { memorySizeOf, transmute } from './dist/transmute.mjs';
 
 (() => {
     console.log(
@@ -32,9 +32,11 @@ import { memorySizeOf, transmute } from './dist/transmute.js';
         if (jsonText != null && jsonText.length > 0) {
             const readOnly = document.querySelector('#is-read-only').checked;
             const deep = document.querySelector('#is-deep').checked;
+
             console.time('Time to transmute');
             const transmutedObject = transmute(JSON.parse(jsonText), { readOnly, deep });
             console.timeEnd('Time to transmute');
+
             window['obj'] = transmutedObject;
             console.log('Memory size:', memorySizeOf(window['obj']));
             console.log('Transmuted JSON stored in variable obj > console.log(obj)');
