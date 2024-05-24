@@ -20,13 +20,15 @@
 			}
 			.actionContainer {
 				display: flex;
-				justify-content: space-between;
+				justify-content: flex-end;
 				align-items: center;
 			}
+			/*
 			.actionContainer .configurations {
 				display: flex;
 				gap: 20px;
 			}
+			*/
 			.actionContainer .actions {
 				display: flex;
 				justify-content: flex-end;
@@ -45,6 +47,7 @@
 				<textarea class="jsonInput"></textarea>
 			</div>
 			<div class="actionContainer">
+				<!--
 				<div class="configurations">
 					<label>Configuration:</label>
 					<label>
@@ -56,13 +59,14 @@
 						Deep
 					</label>
 				</div>
+				-->
 				<div class="actions">
 					<button id="formatJSON">Format JSON</button>
 					<button id="transmuteJSON">Transmute JSON</button>
 				</div>
 			</div>
 		</div>
-		<script src="./dist/transmute.global.js" defer></script>
+		<script src="./dist/index.global.js" defer></script>
 		<script type="module" src="./index.js" defer></script>
 	</body>
 </html>

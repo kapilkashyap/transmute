@@ -36,7 +36,7 @@ for (let index = 0; index < formats.length; index++) {
     console.log(`Building format: ${format}`);
 
     await esbuild.build({
-        entryPoints: ['./src/transmute.ts'],
+        entryPoints: ['./src/index.ts'],
         format,
         bundle: true,
         minify: !!minify,
