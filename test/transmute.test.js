@@ -34,4 +34,34 @@ describe('Tests for transmuted object with default configuration', () => {
         transmutedStore.getStore().getBicycles()[0].setType('x-MTB');
         expect(transmutedStore.getStore().getBicycles()[0].getType()).toBe('x-MTB');
     });
+
+    test('Check if we can use indexed get accessor methods to read values', () => {
+        expect(transmutedStore.getStore().getBooks()).toBeDefined();
+        expect(Array.isArray(transmutedStore.getStore().getBooks())).toBe(true);
+        expect(transmutedStore.getStore().getBooksAt(1).getPrice()).toBe(12.99);
+
+        expect(transmutedStore.getStore().getBicycles()).toBeDefined();
+        expect(Array.isArray(transmutedStore.getStore().getBicycles())).toBe(true);
+        expect(transmutedStore.getStore().getBicyclesAt(0).getPrice()).toBe(199.95);
+    });
+
+    test('Check if we can use indexed set accessor methods to update values', () => {
+        expect(transmutedStore.getStore().getBooks()).toBeDefined();
+        expect(Array.isArray(transmutedStore.getStore().getBooks())).toBe(true);
+        expect(transmutedStore.getStore().getBooksAt(1).getPrice()).toBe(12.99);
+        transmutedStore.getStore().setBooksAt(transmutedStore.getStore().getBooksAt(1).setPrice(10.99), 1);
+        expect(transmutedStore.getStore().getBooksAt(1).getPrice()).toBe(10.99);
+
+        expect(transmutedStore.getStore().getBicycles()).toBeDefined();
+        expect(Array.isArray(transmutedStore.getStore().getBicycles())).toBe(true);
+        expect(transmutedStore.getStore().getBicyclesAt(0).getPrice()).toBe(199.95);
+        transmutedStore.getStore().setBicyclesAt(transmutedStore.getStore().getBicyclesAt(0).setPrice(159.95), 0);
+        expect(transmutedStore.getStore().getBicyclesAt(0).getPrice()).toBe(159.95);
+    });
+
+    test('Check if chaining is possible with setters', () => {
+        expect(
+            transmutedStore.getStore().setBooksAt(transmutedStore.getStore().getBooksAt(2).setPrice(18.99), 2).getBooksAt(2).getPrice()
+        ).toBe(18.99);
+    });
 });
