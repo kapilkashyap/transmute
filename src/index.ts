@@ -72,6 +72,34 @@ const generateDynamicClassInstance = function (className: string, o: IStringInde
         .map((key) => `${HASH}${normalize(key)};`)
         .join(',')
         .replaceAll(',', '');
+    const indexedAccessorMethods = arrayKeys
+        .map((key) => {
+            return `
+              get${capitalize(normalize(key))}At(i) {
+                if (i != null) {
+                    if (i >= 0 && i < this.${HASH}${normalize(key)}.length) {
+                        return this.${HASH}${normalize(key)}[i];
+                    }
+                    throw 'Index out of bound!';
+                }
+                throw 'Please pass a numeric index!';
+              }
+              set${capitalize(normalize(key))}At(v parameter_separator i) {
+                if (Array.isArray(this.${HASH}${normalize(key)}) && i != null) {
+                    if (i >= 0 && i < this.${HASH}${normalize(key)}.length) {
+                        this.${HASH}${normalize(key)}[i] = v;
+                        return this;
+                    }
+                    throw 'Index out of bound!';
+                } else {
+                    throw 'Please pass a numeric index!';
+                }
+              }
+            `;
+        })
+        .join(',')
+        .replaceAll(',', '')
+        .replaceAll('parameter_separator', ',');
     const accessorMethods = keys
         .map((key) => {
             return `
@@ -80,6 +108,7 @@ const generateDynamicClassInstance = function (className: string, o: IStringInde
               }
               set${capitalize(normalize(key))}(v) {
                 this.${HASH}${normalize(key)} = v;
+                return this;
               }
             `;
         })
@@ -90,6 +119,7 @@ const generateDynamicClassInstance = function (className: string, o: IStringInde
           ${privateProperties}
           constructor() {}
           ${accessorMethods}
+          ${indexedAccessorMethods}
         }
       `;
 
