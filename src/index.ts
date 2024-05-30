@@ -3,7 +3,7 @@
  * @author: Kapil Kashyap
  */
 
-// CONSTANTS
+/*** CONSTANTS ***/
 const HASH: string = '#';
 const CLASSNAME: string = 'Klass';
 const EMPTY_STRING: string = '';
@@ -11,8 +11,29 @@ enum ERRORS {
     'JSON_EXPECTED' = 'Expecting a JavaScript Object notation!'
 }
 
-// UTILITY
-export interface IStringIndex extends Record<string, object> {}
+/*** TYPES & INTERFACES ***/
+export interface IStringIndex extends Record<string, unknown> {}
+
+export interface MetaInfo {
+    primitiveKeys: string;
+    objectKeys: string;
+    arrayKeys: string;
+}
+
+export type ObjectMetaInfo = {
+    getMetaInfo: () => MetaInfo;
+};
+
+export type GetterFn = () => unknown;
+
+export type GetterFnArray = () => unknown[];
+
+/*** UTILITY ***/
+const hasObjectMetaInfo = (v: unknown): v is ObjectMetaInfo => typeof v === 'object' && v != null && 'getMetaInfo' in v;
+const hasGetter = (v: unknown, getter: string): v is IStringIndex => typeof v === 'object' && v != null && getter in v;
+const randomNumber = function (fractionDigits = 9, startIndex = 2) {
+    return Math.random().toFixed(fractionDigits).substring(startIndex);
+};
 
 export const getTypeOfObject = function (o: unknown) {
     const response = Object.prototype.toString.call(o);
@@ -31,10 +52,6 @@ export const normalize = function (s: string) {
 
 export const capitalize = function (s: string) {
     return s[0].toUpperCase() + s.slice(1);
-};
-
-export const randomNumber = function (fractionDigits = 9, startIndex = 2) {
-    return Math.random().toFixed(fractionDigits).substring(startIndex);
 };
 
 export const jsonStringifyReplacer = function (value: unknown): string | unknown {
@@ -63,7 +80,7 @@ export const memorySizeOf = function (obj: IStringIndex) {
     return formatByteSize(encodeURI(response).split(/%(?:u[0-9A-F]{2})?[0-9A-F]{2}|./).length - 1);
 };
 
-// TRANSMUTE
+/*** TRANSMUTE ***/
 const generateDynamicClassInstance = function (className: string, o: IStringIndex) {
     const keys = Object.keys(o);
     const primitiveKeys = keys.filter((key) => getTypeOfObject(o[key]) !== 'object' && getTypeOfObject(o[key]) !== 'array');
@@ -118,12 +135,37 @@ const generateDynamicClassInstance = function (className: string, o: IStringInde
         .replaceAll(',', '')
         .replaceAll('parameter_separator', ',');
 
+    const utilityMethods = function () {
+        const primitiveKeyValues = primitiveKeys.map((key) => `"${key}": this.get${capitalize(normalize(key))}()`).join(',');
+        const objectKeyValues = objectKeys.map((key) => `"${key}": this.get${capitalize(normalize(key))}().stringify()`).join(',');
+        // TODO: We need to recursively iterate the array
+        const arrayKeyValues = arrayKeys.map((key) => `"${key}": this.get${capitalize(normalize(key))}()`).join(',');
+
+        return `
+            getMetaInfo() {
+                return {
+                    ${primitiveKeys.length > 0 ? `primitiveKeys: "${primitiveKeys.toString()}",` : ''}
+                    ${objectKeys.length > 0 ? `objectKeys: "${objectKeys.toString()}",` : ''}
+                    ${arrayKeys.length > 0 ? `arrayKeys: "${arrayKeys.toString()}"` : ''}
+                }
+            }
+            stringify() {
+                return {
+                    ${primitiveKeyValues.trim().length > 0 ? primitiveKeyValues.trim() + ',' : ''}
+                    ${objectKeyValues.trim().length > 0 ? objectKeyValues.trim() + ',' : ''}
+                    ${arrayKeyValues}
+                };
+            }
+        `;
+    };
+
     const dynamicClassDefinition = `
         return class ${capitalize(normalize(className))} {
           ${privateProperties}
           constructor() {}
           ${accessorMethods}
           ${indexedAccessorMethods}
+          ${utilityMethods()}
         }
       `;
 
@@ -133,8 +175,10 @@ const generateDynamicClassInstance = function (className: string, o: IStringInde
     // TODO: Figure out a way to get rid of this error
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment
     // @ts-expect-error
-    const instance = new new dynamicClassWrapper()();
+    const dynamicClass = new dynamicClassWrapper();
+    const instance = new dynamicClass();
 
+    /** --- Calling set accessor methods on the instance to initialize the private properties --- **/
     // iterate over the primitive keys
     // if we find an object then we generate a dynamic class and assign its value
     // else, we directly set the value the property returns
@@ -177,6 +221,15 @@ const generateDynamicClassInstance = function (className: string, o: IStringInde
         }
     });
 
+    // TODO: Maybe a good idea for the instance to be able to convert itself into a JSON
+    // Maybe, we should enable this via configuration!
+    // instance.toJSON = function () {
+    //     if (hasObjectMetaInfo(this)) {
+    //         return convertToJSON(this, this.getMetaInfo());
+    //     }
+    //     return {};
+    // };
+
     return instance;
 };
 
@@ -186,4 +239,66 @@ export function transmute(o: IStringIndex, className?: string): IStringIndex {
     }
     // return the transmuted JSON with private properties and accessor methods
     return generateDynamicClassInstance(capitalize(normalize(className ?? `${CLASSNAME}${randomNumber()}`)), o);
+}
+
+/*** UNTRANSMUTE ***/
+const convertToJSON = function (o: unknown, metaInfo: MetaInfo) {
+    let jsonObject = {};
+    if (metaInfo.primitiveKeys != null && metaInfo.primitiveKeys.length > 0) {
+        metaInfo.primitiveKeys.split(',').forEach((key) => {
+            const getter = `get${capitalize(normalize(key))}`;
+            if (hasGetter(o, getter)) {
+                jsonObject = {
+                    ...jsonObject,
+                    [key]: (o[getter] as GetterFn)()
+                };
+            }
+        });
+    }
+    if (metaInfo.objectKeys != null && metaInfo.objectKeys.length > 0) {
+        metaInfo.objectKeys.split(',').forEach((key) => {
+            const getter = `get${capitalize(normalize(key))}`;
+            if (hasGetter(o, getter)) {
+                const getterValue = (o[getter] as GetterFn)();
+                if (hasObjectMetaInfo(getterValue)) {
+                    jsonObject = {
+                        ...jsonObject,
+                        [key]: convertToJSON(getterValue, getterValue.getMetaInfo())
+                    };
+                }
+            }
+        });
+    }
+    if (metaInfo.arrayKeys != null && metaInfo.arrayKeys.length > 0) {
+        metaInfo.arrayKeys.split(',').forEach((key) => {
+            const getter = `get${capitalize(normalize(key))}`;
+            if (hasGetter(o, getter)) {
+                // this is array of values, like getContacts
+                const getterValues = (o[getter] as GetterFnArray)();
+                const mapped = getterValues.map((value: unknown) => {
+                    const typeOfValue = getTypeOfObject(value);
+                    if (typeOfValue === 'array') {
+                        return [];
+                    }
+                    if (typeOfValue === 'object' && hasObjectMetaInfo(value)) {
+                        return convertToJSON(value, value.getMetaInfo());
+                    }
+                    return value;
+                });
+                jsonObject = {
+                    ...jsonObject,
+                    [key]: mapped
+                };
+            }
+        });
+    }
+    return jsonObject;
+};
+
+export function unTransmute(o: unknown): IStringIndex {
+    if (hasObjectMetaInfo(o)) {
+        return convertToJSON(o, o.getMetaInfo());
+    }
+    // TODO: Maybe we should throw and error here and provide more information!
+    return {};
 }
