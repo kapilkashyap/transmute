@@ -66,12 +66,29 @@ export const memorySizeOf = function (obj: IStringIndex) {
 // TRANSMUTE
 const generateDynamicClassInstance = function (className: string, o: IStringIndex) {
     const keys = Object.keys(o);
-    const nonArrayKeys = keys.filter((key) => getTypeOfObject(o[key]) !== 'array');
+    const primitiveKeys = keys.filter((key) => getTypeOfObject(o[key]) !== 'object' && getTypeOfObject(o[key]) !== 'array');
+    const objectKeys = keys.filter((key) => getTypeOfObject(o[key]) === 'object');
     const arrayKeys = keys.filter((key) => getTypeOfObject(o[key]) === 'array');
     const privateProperties = keys
         .map((key) => `${HASH}${normalize(key)};`)
         .join(',')
         .replaceAll(',', '');
+
+    const accessorMethods = keys
+        .map((key) => {
+            return `
+              get${capitalize(normalize(key))}() {
+                return this.${HASH}${normalize(key)};
+              }
+              set${capitalize(normalize(key))}(v) {
+                this.${HASH}${normalize(key)} = v;
+                return this;
+              }
+            `;
+        })
+        .join(',')
+        .replaceAll(',', '');
+
     const indexedAccessorMethods = arrayKeys
         .map((key) => {
             return `
@@ -84,7 +101,7 @@ const generateDynamicClassInstance = function (className: string, o: IStringInde
                 }
                 throw 'Please pass a numeric index!';
               }
-              set${capitalize(normalize(key))}At(v parameter_separator i) {
+              set${capitalize(normalize(key))}At(i parameter_separator v) {
                 if (Array.isArray(this.${HASH}${normalize(key)}) && i != null) {
                     if (i >= 0 && i < this.${HASH}${normalize(key)}.length) {
                         this.${HASH}${normalize(key)}[i] = v;
@@ -100,20 +117,7 @@ const generateDynamicClassInstance = function (className: string, o: IStringInde
         .join(',')
         .replaceAll(',', '')
         .replaceAll('parameter_separator', ',');
-    const accessorMethods = keys
-        .map((key) => {
-            return `
-              get${capitalize(normalize(key))}() {
-                return this.${HASH}${normalize(key)};
-              }
-              set${capitalize(normalize(key))}(v) {
-                this.${HASH}${normalize(key)} = v;
-                return this;
-              }
-            `;
-        })
-        .join(',')
-        .replaceAll(',', '');
+
     const dynamicClassDefinition = `
         return class ${capitalize(normalize(className))} {
           ${privateProperties}
@@ -125,24 +129,33 @@ const generateDynamicClassInstance = function (className: string, o: IStringInde
 
     // This will generate an anonymous iife that returns a Class
     const dynamicClassWrapper = new Function('', dynamicClassDefinition);
+
     // TODO: Figure out a way to get rid of this error
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment
     // @ts-expect-error
     const instance = new new dynamicClassWrapper()();
-    // iterate over the non-array keys
+
+    // iterate over the primitive keys
     // if we find an object then we generate a dynamic class and assign its value
     // else, we directly set the value the property returns
-    nonArrayKeys.forEach((key: string): void => {
+    primitiveKeys.forEach((key: string): void => {
         const setAccessorMethod = `set${capitalize(normalize(key))}`;
         if (setAccessorMethod in instance && typeof instance[setAccessorMethod] === 'function') {
-            if (getTypeOfObject(o[key]) === 'object') {
-                instance[setAccessorMethod](generateDynamicClassInstance(capitalize(normalize(key)), o[key] as IStringIndex));
-            } else {
-                instance[setAccessorMethod](o[key]);
-            }
+            instance[setAccessorMethod](o[key]);
         }
     });
-    // iterate over the array keys
+
+    // iterate over the object type keys
+    // if we find an object then we generate a dynamic class and assign its value
+    // else, we directly set the value the property returns
+    objectKeys.forEach((key: string): void => {
+        const setAccessorMethod = `set${capitalize(normalize(key))}`;
+        if (setAccessorMethod in instance && typeof instance[setAccessorMethod] === 'function') {
+            instance[setAccessorMethod](generateDynamicClassInstance(capitalize(normalize(key)), o[key] as IStringIndex));
+        }
+    });
+
+    // iterate over the array type keys
     // we map through our array and if we find an object then we generate a dynamic class and assign its value
     // else, we simply return the value
     arrayKeys.forEach((key: string): void => {
@@ -154,12 +167,16 @@ const generateDynamicClassInstance = function (className: string, o: IStringInde
                     if (getTypeOfObject(value) === 'object') {
                         return generateDynamicClassInstance(capitalize(normalize(`${key}${index}`)), value as IStringIndex);
                     }
+                    if (getTypeOfObject(value) === 'array') {
+                        throw 'Multidimensional array not supported. Yet!';
+                    }
                     return value;
                 });
                 instance[setAccessorMethod](valueInstances);
             }
         }
     });
+
     return instance;
 };
 

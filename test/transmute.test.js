@@ -49,19 +49,30 @@ describe('Tests for transmuted object with default configuration', () => {
         expect(transmutedStore.getStore().getBooks()).toBeDefined();
         expect(Array.isArray(transmutedStore.getStore().getBooks())).toBe(true);
         expect(transmutedStore.getStore().getBooksAt(1).getPrice()).toBe(12.99);
-        transmutedStore.getStore().setBooksAt(transmutedStore.getStore().getBooksAt(1).setPrice(10.99), 1);
+        transmutedStore.getStore().setBooksAt(1, transmutedStore.getStore().getBooksAt(1).setPrice(10.99));
         expect(transmutedStore.getStore().getBooksAt(1).getPrice()).toBe(10.99);
 
         expect(transmutedStore.getStore().getBicycles()).toBeDefined();
         expect(Array.isArray(transmutedStore.getStore().getBicycles())).toBe(true);
         expect(transmutedStore.getStore().getBicyclesAt(0).getPrice()).toBe(199.95);
-        transmutedStore.getStore().setBicyclesAt(transmutedStore.getStore().getBicyclesAt(0).setPrice(159.95), 0);
+        transmutedStore.getStore().setBicyclesAt(0, transmutedStore.getStore().getBicyclesAt(0).setPrice(159.95));
         expect(transmutedStore.getStore().getBicyclesAt(0).getPrice()).toBe(159.95);
     });
 
     test('Check if chaining is possible with setters', () => {
-        expect(
-            transmutedStore.getStore().setBooksAt(transmutedStore.getStore().getBooksAt(2).setPrice(18.99), 2).getBooksAt(2).getPrice()
-        ).toBe(18.99);
+        const thirdBook = transmutedStore.getStore().getBooksAt(2);
+        expect(thirdBook.getPrice()).toBe(8.99);
+        expect(transmutedStore.getStore().setBooksAt(2, thirdBook.setPrice(18.99)).getBooksAt(2).getPrice()).toBe(18.99);
+    });
+
+    test('Check if getters and setters work on object instances', () => {
+        // returns the 4th book instance
+        const fourthBook = transmutedStore.getStore().getBooksAt(3);
+        expect(fourthBook.getPrice()).toBe(22.99);
+        // setting price of fourth book instance
+        fourthBook.setPrice(33.99);
+        expect(fourthBook.getPrice()).toBe(33.99);
+        // fetching the fourth book instance from parent object also returns updated value
+        expect(transmutedStore.getStore().getBooksAt(3).getPrice()).toBe(33.99);
     });
 });
