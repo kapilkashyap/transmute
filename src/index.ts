@@ -35,7 +35,7 @@ const randomNumber = function (fractionDigits = 9, startIndex = 2) {
     return Math.random().toFixed(fractionDigits).substring(startIndex);
 };
 
-export const getTypeOfObject = function (o: unknown) {
+const getTypeOfObject = function (o: unknown) {
     const response = Object.prototype.toString.call(o);
     return response
         .substring(1, response.length - 1)
@@ -43,30 +43,30 @@ export const getTypeOfObject = function (o: unknown) {
         .toLowerCase();
 };
 
-export const normalize = function (s: string) {
+const normalize = function (s: string) {
     if (!isNaN(Number(s[0]))) {
         s = '_' + s;
     }
     return s.toString().replace(/\s|\./g, EMPTY_STRING);
 };
 
-export const capitalize = function (s: string) {
+const capitalize = function (s: string) {
     return s[0].toUpperCase() + s.slice(1);
 };
 
-export const jsonStringifyReplacer = function (value: unknown): string | unknown {
-    if (typeof value === 'function') {
-        return String(value);
-    }
-    return value;
-};
-
-export const jsonParseReviver = function (value: unknown): unknown {
-    if (typeof value === 'string' && (value.indexOf('function') !== -1 || value.indexOf('=>') !== -1)) {
-        return new Function('return ' + value)();
-    }
-    return value;
-};
+// const jsonStringifyReplacer = function (value: unknown): string | unknown {
+//     if (typeof value === 'function') {
+//         return String(value);
+//     }
+//     return value;
+// };
+//
+// const jsonParseReviver = function (value: unknown): unknown {
+//     if (typeof value === 'string' && (value.indexOf('function') !== -1 || value.indexOf('=>') !== -1)) {
+//         return new Function('return ' + value)();
+//     }
+//     return value;
+// };
 
 export const memorySizeOf = function (obj: IStringIndex) {
     const formatByteSize = function (bytes: number) {
@@ -76,7 +76,7 @@ export const memorySizeOf = function (obj: IStringIndex) {
         else if (bytes < Math.pow(kiloByte, 3)) return (bytes / Math.pow(kiloByte, 2)).toFixed(6) + ' MiB';
         else return (bytes / Math.pow(kiloByte, 3)).toFixed(6) + ' GiB';
     };
-    const response: string = JSON.stringify(obj, jsonStringifyReplacer);
+    const response: string = JSON.stringify(obj);
     return formatByteSize(encodeURI(response).split(/%(?:u[0-9A-F]{2})?[0-9A-F]{2}|./).length - 1);
 };
 
@@ -136,11 +136,6 @@ const generateDynamicClassInstance = function (className: string, o: IStringInde
         .replaceAll('parameter_separator', ',');
 
     const utilityMethods = function () {
-        const primitiveKeyValues = primitiveKeys.map((key) => `"${key}": this.get${capitalize(normalize(key))}()`).join(',');
-        const objectKeyValues = objectKeys.map((key) => `"${key}": this.get${capitalize(normalize(key))}().stringify()`).join(',');
-        // TODO: We need to recursively iterate the array
-        const arrayKeyValues = arrayKeys.map((key) => `"${key}": this.get${capitalize(normalize(key))}()`).join(',');
-
         return `
             getMetaInfo() {
                 return {
@@ -148,13 +143,6 @@ const generateDynamicClassInstance = function (className: string, o: IStringInde
                     ${objectKeys.length > 0 ? `objectKeys: "${objectKeys.toString()}",` : ''}
                     ${arrayKeys.length > 0 ? `arrayKeys: "${arrayKeys.toString()}"` : ''}
                 }
-            }
-            stringify() {
-                return {
-                    ${primitiveKeyValues.trim().length > 0 ? primitiveKeyValues.trim() + ',' : ''}
-                    ${objectKeyValues.trim().length > 0 ? objectKeyValues.trim() + ',' : ''}
-                    ${arrayKeyValues}
-                };
             }
         `;
     };
@@ -221,14 +209,13 @@ const generateDynamicClassInstance = function (className: string, o: IStringInde
         }
     });
 
-    // TODO: Maybe a good idea for the instance to be able to convert itself into a JSON
-    // Maybe, we should enable this via configuration!
-    // instance.toJSON = function () {
-    //     if (hasObjectMetaInfo(this)) {
-    //         return convertToJSON(this, this.getMetaInfo());
-    //     }
-    //     return {};
-    // };
+    // You can directly convert the instance into a JSON
+    instance.toJson = function () {
+        if (hasObjectMetaInfo(this)) {
+            return convertToJSON(this, this.getMetaInfo());
+        }
+        return {};
+    };
 
     return instance;
 };
@@ -295,10 +282,23 @@ const convertToJSON = function (o: unknown, metaInfo: MetaInfo) {
     return jsonObject;
 };
 
-export function unTransmute(o: unknown): IStringIndex {
-    if (hasObjectMetaInfo(o)) {
-        return convertToJSON(o, o.getMetaInfo());
+export function unTransmute(o: unknown | unknown[]): IStringIndex | IStringIndex[] {
+    if (Array.isArray(o)) {
+        if (o.length === 0) {
+            throw 'Passed an empty array!';
+        }
+        return o.map((entry) => {
+            if (hasObjectMetaInfo(entry)) {
+                return convertToJSON(entry, entry.getMetaInfo());
+            }
+            return {};
+        });
     }
-    // TODO: Maybe we should throw and error here and provide more information!
-    return {};
+    if (getTypeOfObject(o) === 'object') {
+        if (hasObjectMetaInfo(o)) {
+            return convertToJSON(o, o.getMetaInfo());
+        }
+        throw 'Meta info is missing in the object!';
+    }
+    throw 'Please provide a transmuted object or an array of transmuted objects!';
 }

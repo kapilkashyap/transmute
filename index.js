@@ -35,7 +35,7 @@ import { memorySizeOf, transmute } from './dist/index.mjs';
             console.timeEnd('Time to transmute');
 
             window['obj'] = transmutedObject;
-            console.log('Memory size:', memorySizeOf(window['obj']));
+            console.log('Memory size:', memorySizeOf(transmutedObject.toJson()));
             console.log('Transmuted JSON stored in variable obj > console.log(obj)');
             console.log(window['obj']);
         }
