@@ -217,6 +217,11 @@ const generateDynamicClassInstance = function (className: string, o: IStringInde
         return {};
     };
 
+    // You can create a clone of the transmuted object
+    instance.clone = function () {
+        return transmute(this.toJson());
+    };
+
     return instance;
 };
 
