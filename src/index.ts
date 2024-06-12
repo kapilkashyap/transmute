@@ -8,7 +8,9 @@ const HASH: string = '#';
 const CLASSNAME: string = 'Klass';
 const EMPTY_STRING: string = '';
 enum ERRORS {
-    'JSON_EXPECTED' = 'Expecting a JavaScript Object notation!'
+    JSON_EXPECTED = 'Expecting a JavaScript Object notation!',
+    META_INFO_MISSING = 'Meta info is missing in the object!',
+    TRANSMUTED_OBJECT_EXPECTED = 'Transmuted object or an array of transmuted object(s) expected!'
 }
 
 /*** TYPES & INTERFACES ***/
@@ -303,7 +305,7 @@ export function unTransmute(o: unknown | unknown[]): IStringIndex | IStringIndex
         if (hasObjectMetaInfo(o)) {
             return convertToJSON(o, o.getMetaInfo());
         }
-        throw 'Meta info is missing in the object!';
+        throw ERRORS.META_INFO_MISSING;
     }
-    throw 'Please provide a transmuted object or an array of transmuted objects!';
+    throw ERRORS.TRANSMUTED_OBJECT_EXPECTED;
 }
