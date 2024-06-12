@@ -28,7 +28,7 @@ const { values: { format, minify, globalName } } = parseArgs({ args, options });
 const formats = format == null ? ['cjs'] : format.split(',');
 const namespace = globalName || 'lib.api';
 
-console.log(`Namespace: ${namespace}`);
+console.log(`API exposed using the following namespace in browser: ${namespace}\r\n`);
 
 for (let index = 0; index < formats.length; index++) {
     const format = formats[index];
