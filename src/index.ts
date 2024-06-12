@@ -123,25 +123,12 @@ const generateDynamicClassInstance = function (className: string, o: IStringInde
         .replaceAll(',', '')
         .replaceAll('parameter_separator', ',');
 
-    const utilityMethods = function () {
-        return `
-            getMetaInfo() {
-                return {
-                    ${primitiveKeys.length > 0 ? `primitiveKeys: "${primitiveKeys.toString()}",` : ''}
-                    ${objectKeys.length > 0 ? `objectKeys: "${objectKeys.toString()}",` : ''}
-                    ${arrayKeys.length > 0 ? `arrayKeys: "${arrayKeys.toString()}"` : ''}
-                }
-            }
-        `;
-    };
-
     const dynamicClassDefinition = `
         return class ${capitalize(normalize(className))} {
           ${privateProperties}
           constructor() {}
           ${accessorMethods}
           ${indexedAccessorMethods}
-          ${utilityMethods()}
         }
       `;
 
@@ -152,6 +139,40 @@ const generateDynamicClassInstance = function (className: string, o: IStringInde
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment
     // @ts-expect-error
     const dynamicClass = new dynamicClassWrapper();
+
+    // Attach utility methods to the prototype of the Class
+    if (dynamicClass.prototype != null) {
+        // Convert the instance into a valid JSON
+        dynamicClass.prototype.toJson = function () {
+            if (hasObjectMetaInfo(this)) {
+                return convertToJSON(this, this.getMetaInfo());
+            }
+            return {};
+        };
+        // Create a clone of the transmuted object
+        dynamicClass.prototype.clone = function () {
+            return transmute(this.toJson());
+        };
+        // Construct a meta-info of the instance
+        dynamicClass.prototype.getMetaInfo = function () {
+            let o = {};
+            if (primitiveKeys.length > 0) {
+                o = { ...o, primitiveKeys: primitiveKeys.toString() };
+            }
+            if (objectKeys.length > 0) {
+                o = { ...o, objectKeys: objectKeys.toString() };
+            }
+            if (arrayKeys.length > 0) {
+                o = { ...o, arrayKeys: arrayKeys.toString() };
+            }
+            return o;
+        };
+        // Utility to check the type
+        dynamicClass.prototype.utility = {
+            getTypeOfObject
+        };
+    }
+
     const instance = new dynamicClass();
 
     /** --- Calling set accessor methods on the instance to initialize the private properties --- **/
@@ -196,19 +217,6 @@ const generateDynamicClassInstance = function (className: string, o: IStringInde
             }
         }
     });
-
-    // You can directly convert the instance into a JSON
-    instance.toJson = function () {
-        if (hasObjectMetaInfo(this)) {
-            return convertToJSON(this, this.getMetaInfo());
-        }
-        return {};
-    };
-
-    // You can create a clone of the transmuted object
-    instance.clone = function () {
-        return transmute(this.toJson());
-    };
 
     return instance;
 };
@@ -277,9 +285,6 @@ const convertToJSON = function (o: unknown, metaInfo: MetaInfo) {
 
 export function unTransmute(o: unknown | unknown[]): IStringIndex | IStringIndex[] {
     if (Array.isArray(o)) {
-        if (o.length === 0) {
-            throw 'Passed an empty array!';
-        }
         return o.map((entry) => {
             if (hasObjectMetaInfo(entry)) {
                 return convertToJSON(entry, entry.getMetaInfo());
