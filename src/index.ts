@@ -56,20 +56,6 @@ const capitalize = function (s: string) {
     return s[0].toUpperCase() + s.slice(1);
 };
 
-// const jsonStringifyReplacer = function (value: unknown): string | unknown {
-//     if (typeof value === 'function') {
-//         return String(value);
-//     }
-//     return value;
-// };
-//
-// const jsonParseReviver = function (value: unknown): unknown {
-//     if (typeof value === 'string' && (value.indexOf('function') !== -1 || value.indexOf('=>') !== -1)) {
-//         return new Function('return ' + value)();
-//     }
-//     return value;
-// };
-
 export const memorySizeOf = function (obj: IStringIndex) {
     const formatByteSize = function (bytes: number) {
         const kiloByte = 1024;
