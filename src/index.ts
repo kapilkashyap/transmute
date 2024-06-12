@@ -81,13 +81,18 @@ const generateDynamicClassInstance = function (className: string, o: IStringInde
 
     const accessorMethods = keys
         .map((key) => {
+            const valueType = getTypeOfObject(o[key]);
             return `
               get${capitalize(normalize(key))}() {
                 return this.${HASH}${normalize(key)};
               }
               set${capitalize(normalize(key))}(v) {
-                this.${HASH}${normalize(key)} = v;
-                return this;
+                const typeOfValue = this.utility.getTypeOfObject(v);
+                if (typeOfValue === '${valueType}') {
+                    this.${HASH}${normalize(key)} = v;
+                    return this;
+                }
+                throw 'Type mismatch: argument of type ${valueType} expected but got ' + typeOfValue + ' instead';
               }
             `;
         })
@@ -98,24 +103,25 @@ const generateDynamicClassInstance = function (className: string, o: IStringInde
         .map((key) => {
             return `
               get${capitalize(normalize(key))}At(i) {
-                if (i != null) {
-                    if (i >= 0 && i < this.${HASH}${normalize(key)}.length) {
-                        return this.${HASH}${normalize(key)}[i];
+                const value = this.${HASH}${normalize(key)};
+                if (this.utility.getTypeOfObject(i) === 'number') {
+                    if (i >= 0 && i < value.length) {
+                        return value[i];
                     }
                     throw 'Index out of bound!';
                 }
-                throw 'Please pass a numeric index!';
+                throw 'Index should be of type number';
               }
               set${capitalize(normalize(key))}At(i parameter_separator v) {
-                if (Array.isArray(this.${HASH}${normalize(key)}) && i != null) {
-                    if (i >= 0 && i < this.${HASH}${normalize(key)}.length) {
-                        this.${HASH}${normalize(key)}[i] = v;
+                const value = this.${HASH}${normalize(key)};
+                if (this.utility.getTypeOfObject(i) === 'number') {
+                    if (i >= 0 && i < value.length) {
+                        value[i] = v;
                         return this;
                     }
                     throw 'Index out of bound!';
-                } else {
-                    throw 'Please pass a numeric index!';
                 }
+                throw 'Index should be of type number';
               }
             `;
         })
