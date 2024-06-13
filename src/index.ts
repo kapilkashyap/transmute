@@ -30,6 +30,11 @@ export type GetterFn = () => unknown;
 
 export type GetterFnArray = () => unknown[];
 
+export type Config = {
+    validateInput?: boolean;
+    cloneable?: boolean;
+};
+
 /*** UTILITY ***/
 const hasObjectMetaInfo = (v: unknown): v is ObjectMetaInfo => typeof v === 'object' && v != null && 'getMetaInfo' in v;
 const hasGetter = (v: unknown, getter: string): v is IStringIndex => typeof v === 'object' && v != null && getter in v;
@@ -54,6 +59,19 @@ const normalize = function (s: string) {
 
 const capitalize = function (s: string) {
     return s[0].toUpperCase() + s.slice(1);
+};
+
+// default configuration
+let config: Config = {
+    validateInput: false,
+    cloneable: true
+};
+
+const setConfig = function (cfg: Config) {
+    config = {
+        ...config,
+        ...cfg
+    };
 };
 
 export const memorySizeOf = function (obj: IStringIndex) {
@@ -81,6 +99,21 @@ const generateDynamicClassInstance = function (className: string, o: IStringInde
 
     const accessorMethods = keys
         .map((key) => {
+            return `
+              get${capitalize(normalize(key))}() {
+                return this.${HASH}${normalize(key)};
+              }
+              set${capitalize(normalize(key))}(v) {
+                this.${HASH}${normalize(key)} = v;
+                return this;
+              }
+            `;
+        })
+        .join(',')
+        .replaceAll(',', '');
+
+    const accessorMethodsWithValidation = keys
+        .map((key) => {
             const valueType = getTypeOfObject(o[key]);
             return `
               get${capitalize(normalize(key))}() {
@@ -100,6 +133,34 @@ const generateDynamicClassInstance = function (className: string, o: IStringInde
         .replaceAll(',', '');
 
     const indexedAccessorMethods = arrayKeys
+        .map((key) => {
+            return `
+              get${capitalize(normalize(key))}At(i) {
+                if (i != null) {
+                    if (i >= 0 && i < this.${HASH}${normalize(key)}.length) {
+                        return this.${HASH}${normalize(key)}[i];
+                    }
+                    throw 'Index out of bound!';
+                }
+                throw 'Index should be of type number';
+              }
+              set${capitalize(normalize(key))}At(i parameter_separator v) {
+                if (Array.isArray(this.${HASH}${normalize(key)}) && i != null) {
+                    if (i >= 0 && i < this.${HASH}${normalize(key)}.length) {
+                        this.${HASH}${normalize(key)}[i] = v;
+                        return this;
+                    }
+                    throw 'Index out of bound!';
+                }
+                throw 'Index should be of type number';
+              }
+            `;
+        })
+        .join(',')
+        .replaceAll(',', '')
+        .replaceAll('parameter_separator', ',');
+
+    const indexedAccessorMethodsWithValidation = arrayKeys
         .map((key) => {
             return `
               get${capitalize(normalize(key))}At(i) {
@@ -133,8 +194,8 @@ const generateDynamicClassInstance = function (className: string, o: IStringInde
         return class ${capitalize(normalize(className))} {
           ${privateProperties}
           constructor() {}
-          ${accessorMethods}
-          ${indexedAccessorMethods}
+          ${config.validateInput ? accessorMethodsWithValidation : accessorMethods}
+          ${config.validateInput ? indexedAccessorMethodsWithValidation : indexedAccessorMethods}
         }
       `;
 
@@ -155,10 +216,15 @@ const generateDynamicClassInstance = function (className: string, o: IStringInde
             }
             return {};
         };
-        // Create a clone of the transmuted object
-        dynamicClass.prototype.clone = function () {
-            return transmute(this.toJson());
-        };
+
+        // Config driven
+        if (config.cloneable) {
+            // Create a clone of the transmuted object
+            dynamicClass.prototype.clone = function () {
+                return transmute(this.toJson());
+            };
+        }
+
         // Construct a meta-info of the instance
         dynamicClass.prototype.getMetaInfo = function () {
             let o = {};
@@ -227,9 +293,12 @@ const generateDynamicClassInstance = function (className: string, o: IStringInde
     return instance;
 };
 
-export function transmute(o: IStringIndex, className?: string): IStringIndex {
+export function transmute(o: IStringIndex, config?: Config, className?: string): IStringIndex {
     if (getTypeOfObject(o) !== 'object') {
         throw ERRORS.JSON_EXPECTED;
+    }
+    if (config != null) {
+        setConfig(config);
     }
     // return the transmuted JSON with private properties and accessor methods
     return generateDynamicClassInstance(capitalize(normalize(className ?? `${CLASSNAME}${randomNumber()}`)), o);
