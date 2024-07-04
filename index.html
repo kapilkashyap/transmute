@@ -20,15 +20,13 @@
 			}
 			.actionContainer {
 				display: flex;
-				justify-content: flex-end;
+				justify-content: space-between;
 				align-items: center;
 			}
-			/*
 			.actionContainer .configurations {
 				display: flex;
 				gap: 20px;
 			}
-			*/
 			.actionContainer .actions {
 				display: flex;
 				justify-content: flex-end;
@@ -47,19 +45,17 @@
 				<textarea class="jsonInput"></textarea>
 			</div>
 			<div class="actionContainer">
-				<!--
 				<div class="configurations">
 					<label>Configuration:</label>
 					<label>
-						<input id="is-read-only" type="checkbox" name="readOnly" />
-						Read only
+						<input id="validateInputId" type="checkbox" name="validateInput" />
+						Validate Input
 					</label>
 					<label>
-						<input id="is-deep" type="checkbox" name="deep" checked />
-						Deep
+						<input id="cloneableId" type="checkbox" name="cloneable" checked />
+						Cloneable
 					</label>
 				</div>
-				-->
 				<div class="actions">
 					<button id="formatJSON">Format JSON</button>
 					<button id="transmuteJSON">Transmute JSON</button>
