@@ -30,8 +30,13 @@ import { memorySizeOf, transmute } from './dist/index.mjs';
     document.querySelector('button#transmuteJSON').addEventListener('click', () => {
         const jsonText = document.querySelector('.jsonInput').value;
         if (jsonText != null && jsonText.length > 0) {
+            const validateInput = document.querySelector('#validateInputId').checked;
+            const cloneable = document.querySelector('#cloneableId').checked;
             console.time('Time to transmute');
-            const transmutedObject = transmute(JSON.parse(jsonText));
+            const transmutedObject = transmute(JSON.parse(jsonText), {
+                validateInput,
+                cloneable
+            });
             console.timeEnd('Time to transmute');
 
             window['obj'] = transmutedObject;
