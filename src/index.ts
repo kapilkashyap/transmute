@@ -360,12 +360,14 @@ const convertToJSON = function (o: unknown, metaInfo: MetaInfo) {
 
 export function unTransmute(o: unknown | unknown[]): IStringIndex | IStringIndex[] {
     if (Array.isArray(o)) {
-        return o.map((entry) => {
-            if (hasObjectMetaInfo(entry)) {
-                return convertToJSON(entry, entry.getMetaInfo());
-            }
-            return {};
-        });
+        if (o.length > 0) {
+            return o.map((entry) => {
+                if (hasObjectMetaInfo(entry)) {
+                    return convertToJSON(entry, entry.getMetaInfo());
+                }
+                throw ERRORS.META_INFO_MISSING;
+            });
+        }
     }
     if (getTypeOfObject(o) === 'object') {
         if (hasObjectMetaInfo(o)) {
