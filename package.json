@@ -17,9 +17,7 @@
     "minify": "esbuild ./dist/transmute.js --minify --outdir=./dist --out-extension:.js=.min.js",
     "bundler:esbuild": "node ./esbuild.config.mjs",
     "build": "npm run lint && tsc && npm run bundler:esbuild -- --format=cjs,esm,iife --minify=true",
-    "build:dev": "npm run lint && tsc && npm run bundler:esbuild -- --format=cjs,esm,iife",
-    "build:test": "npm run build && npm run test",
-    "build:scratch": "npm install && npm run build:test"
+    "build:dev": "npm run lint && tsc && npm run bundler:esbuild -- --format=cjs,esm,iife"
   },
   "repository": {
     "type": "git",
@@ -37,15 +35,11 @@
   },
   "homepage": "https://github.com/kapilkashyap/transmute#readme",
   "devDependencies": {
-    "@babel/preset-env": "^7.23.6",
     "@typescript-eslint/eslint-plugin": "^6.15.0",
     "@typescript-eslint/parser": "^6.15.0",
-    "babel-jest": "^29.7.0",
     "esbuild": "0.17.18",
     "eslint": "^8.56.0",
     "eslint-plugin-prettier": "^5.1.2",
-    "jest": "^29.7.0",
-    "ts-jest": "^29.0.3",
     "typescript": "^5.3.3"
   }
 }
