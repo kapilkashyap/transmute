@@ -1,6 +1,6 @@
 /**
  * Currently I am behind a VPN and we do not have a tsup bundler in our npm registry
- * 
+ *
  * Caution: This script tries to emulate tsup bundler configurations and it might be removed in future
  */
 
@@ -12,19 +12,21 @@ const args = process.argv.slice(2);
 const options = {
     minify: {
         type: 'string',
-        short: 'm',
+        short: 'm'
     },
     format: {
         type: 'string',
-        short: 'f',
+        short: 'f'
     },
     globalName: {
         type: 'string',
-        short: 'g',
+        short: 'g'
     }
 };
 
-const { values: { format, minify, globalName } } = parseArgs({ args, options });
+const {
+    values: { format, minify, globalName }
+} = parseArgs({ args, options });
 const formats = format == null ? ['cjs'] : format.split(',');
 const namespace = globalName || 'lib.api';
 
