@@ -14,7 +14,7 @@ enum ERRORS {
 }
 
 /*** TYPES & INTERFACES ***/
-export interface IStringIndex extends Record<string, unknown> {}
+export type IStringIndex = Record<string, unknown>;
 
 export interface MetaInfo {
     primitiveKeys: string;
