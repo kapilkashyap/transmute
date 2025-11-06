@@ -7,6 +7,7 @@
 const HASH: string = '#';
 const CLASSNAME: string = 'Klass';
 const EMPTY_STRING: string = '';
+const UNDERSCORE: string = '_';
 enum ERRORS {
     JSON_EXPECTED = 'Expecting a JavaScript Object notation!',
     META_INFO_MISSING = 'Meta info is missing in the object!',
@@ -54,7 +55,7 @@ const normalize = function (s: string) {
     if (!isNaN(Number(s[0]))) {
         s = '_' + s;
     }
-    return s.toString().replace(/\s|\./g, EMPTY_STRING);
+    return s.toString().replace(/\-/g, UNDERSCORE).replace(/\s|\./g, EMPTY_STRING);
 };
 
 const capitalize = function (s: string) {
