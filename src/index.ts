@@ -55,7 +55,7 @@ const normalize = function (s: string) {
     if (!isNaN(Number(s[0]))) {
         s = '_' + s;
     }
-    return s.toString().replace(/\-/g, UNDERSCORE).replace(/\s|\./g, EMPTY_STRING);
+    return s.toString().replace(/-/g, UNDERSCORE).replace(/\s|\./g, EMPTY_STRING);
 };
 
 const capitalize = function (s: string) {
