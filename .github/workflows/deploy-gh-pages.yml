@@ -1,0 +1,74 @@
+name: Build and Deploy to GitHub Pages
+
+on:
+  push:
+    branches:
+    - main
+  workflow_dispatch: # Allows manual triggering
+
+jobs:
+  build-and-deploy:
+    # Use ubuntu-latest for the runner environment
+    runs-on: ubuntu-latest
+
+    # Give the job necessary permissions to read the repository content
+    # and write to the gh-pages branch.
+    permissions:
+      contents: write
+      pages: write 
+      id-token: write # Needed for newer GitHub Pages deployments, good practice.
+
+    steps:
+      # Step 1: Checkout the repository code
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          # Fetch all history for accurate deployment
+          fetch-depth: 0 
+
+      # --- Build process steps ---
+      # Step 2: Setup Node.js environment
+      - name: Setup Node.js environment
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20' # Use a stable Node.js version
+          cache: 'npm' # Caches npm dependencies for faster builds
+
+      # Step 3: Install dependencies
+      - name: Install dependencies
+        run: npm install
+
+      # Step 4: Run the build script
+      # This command generates the content of 'dist' folder
+      - name: Build project
+        run: npm run build
+
+      # --- Deployment Steps ---
+      # Step 5: Combine your files into a temporary deployment folder
+      # Ensure 'dist' is created by the build step before this runs
+      - name: Prepare Deployment files
+        run: |
+          # Create a temporary folder for deployment
+          mkdir _site
+
+          # Copy the freshly generated contents of the 'dist' folder
+          cp -r dist/transmute.mjs _site/
+
+          # Copy the contents of the 'data' folder
+          cp -r data/* _site/
+
+          # Copy individual files
+          cp index.html _site/
+          cp index.js _site/
+
+          # Add .nojekyll to prevent GitHub Pages from processing
+          touch _site/.nojekyll
+
+      # Step 6: Deploy to 'gh-pages' branch
+      - name: Deploy to 'gh-pages' branch
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{secrets.GITHUB_TOKEN}}
+          publish_branch: gh-pages
+          publish_dir: ./_site
+          commit_message: "Deploying gh-pages via CI build [skip ci]"
