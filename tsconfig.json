@@ -23,8 +23,7 @@
     "noImplicitAny": true,
     "stripInternal": true,
     "inlineSourceMap": true,
-    "inlineSources": true,
-    // "declarationDir": "./dist/types"
+    "inlineSources": true
   },
   "include": [
     "src"
