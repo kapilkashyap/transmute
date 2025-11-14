@@ -51,11 +51,15 @@ jobs:
           # Create a temporary folder for deployment
           mkdir _site
 
-          # Copy the freshly generated contents of the 'dist' folder
-          cp -r dist/transmute.mjs _site/
+          # Created the generated 'dist' folder required inside '_site'
+          mkdir -p _site/dist
+
+          # Selectively copy the freshly generated contents of the 'dist' folder
+          cp dist/index.global.js _site/dist/index.global.js
+          cp dist/index.mjs _site/dist/index.mjs
 
           # Copy the contents of the 'data' folder
-          cp -r data/* _site/
+          cp -r data _site/
 
           # Copy individual files
           cp index.html _site/
