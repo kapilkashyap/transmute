@@ -1,5 +1,11 @@
 export default {
     store: {
+        info: {
+            name: 'Some Store',
+            location: 'Somewhere',
+            contacts: ['555-000-1234', 5550005678],
+            online: true
+        },
         books: [
             {
                 category: 'reference',
