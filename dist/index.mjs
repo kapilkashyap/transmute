@@ -1,46 +1,49 @@
-var u="#",T="Klass",K="",C="_";var y=e=>typeof e=="object"&&e!=null&&"getMetaInfo"in e,M=(e,n)=>typeof e=="object"&&e!=null&&n in e,N=function(e=9,n=2){return Math.random().toFixed(e).substring(n)},l=function(e){let n=Object.prototype.toString.call(e);return n.substring(1,n.length-1).split(/\s/)[1].toLowerCase()},r=function(e){return isNaN(Number(e[0]))||(e="_"+e),e.toString().replace(/-/g,C).replace(/\s|\./g,K)},s=function(e){return e[0].toUpperCase()+e.slice(1)},d={validateInput:!1,cloneable:!0},_=function(e){d={...d,...e}},B=function(e){let n=function(i){return i<1024?i+" bytes":i<Math.pow(1024,2)?(i/1024).toFixed(6)+" KiB":i<Math.pow(1024,3)?(i/Math.pow(1024,2)).toFixed(6)+" MiB":(i/Math.pow(1024,3)).toFixed(6)+" GiB"},o=JSON.stringify(e);return n(encodeURI(o).split(/%(?:u[0-9A-F]{2})?[0-9A-F]{2}|./).length-1)},x=function(e,n){let o=Object.keys(n),i=o.filter(t=>l(n[t])!=="object"&&l(n[t])!=="array"),c=o.filter(t=>l(n[t])==="object"),f=o.filter(t=>l(n[t])==="array"),m=o.map(t=>`${u}${r(t)};`).join(",").replaceAll(",",""),g=o.map(t=>`
-              get${s(r(t))}() {
-                return this.${u}${r(t)};
+var l="#",R="Transmute",j="",D="_";var O=e=>typeof e=="object"&&e!=null&&"getMetaInfo"in e,C=(e,n)=>typeof e=="object"&&e!=null&&n in e,P=function(e=9,n=2){return Math.random().toFixed(e).substring(n)},c=function(e){let n=Object.prototype.toString.call(e);return n.substring(1,n.length-1).split(/\s/)[1].toLowerCase()},T=function(e,n,o,r){if(M.rules!=null){let s=e!=null&&e.trim().length>0?`${e}.${n}`:void 0;r=r??(s!=null&&M.rules[s]!=null?M.rules[s]:M.rules[n]);let f=(g,p)=>{if(r!=null){let d=r(g);if(d!==!0)throw typeof d=="string"?p!=null?new Error(`Validation error at index ${p} [${s}]: ${d}`):new Error(`Validation error [${s}]: ${d}`):new Error(`Validation failed for property ${s} with value ${g}`)}};if(r!=null&&c(r)==="function"&&o!=null){if(Array.isArray(o)){o.forEach(f);return}f(o)}}},i=function(e){return isNaN(Number(e[0]))||(e="_"+e),e.toString().replace(/-/g,D).replace(/\s|\./g,j)},a=function(e){return e[0].toUpperCase()+e.slice(1)},A=function(e,n=",",o=",",r=" COMMA_PLACEHOLDER"){return e.join(n).replaceAll(o,"").replaceAll(r,",")},M={validateInput:!1,cloneable:!0,rules:{}},N=function(e){M={...M,...e}},K=function(e){let n=function(r){return r<1024?r+" bytes":r<Math.pow(1024,2)?(r/1024).toFixed(6)+" KiB":r<Math.pow(1024,3)?(r/Math.pow(1024,2)).toFixed(6)+" MiB":(r/Math.pow(1024,3)).toFixed(6)+" GiB"},o=JSON.stringify(e);return n(encodeURI(o).split(/%(?:u[0-9A-F]{2})?[0-9A-F]{2}|./).length-1)},I=function(e,n,o=""){let r=Object.keys(n),s=r.filter(t=>c(n[t])!=="object"&&c(n[t])!=="array"),f=r.filter(t=>c(n[t])==="object"),g=r.filter(t=>c(n[t])==="array"),p=A(r.map(t=>`${l}${i(t)};`)),d=A(r.map(t=>`
+              get${a(i(t))}() {
+                return this.${l}${i(t)};
               }
-              set${s(r(t))}(v) {
-                this.${u}${r(t)} = v;
+              set${a(i(t))}(v COMMA_PLACEHOLDER validator) {
+                this.utility.validateRule(this.getNameSpace() COMMA_PLACEHOLDER '${t}' COMMA_PLACEHOLDER v COMMA_PLACEHOLDER validator);
+                this.${l}${i(t)} = v;
                 return this;
               }
-            `).join(",").replaceAll(",",""),b=o.map(t=>{let a=l(n[t]);return`
-              get${s(r(t))}() {
-                return this.${u}${r(t)};
+            `)),m=A(r.map(t=>{let u=c(n[t]);return`
+              get${a(i(t))}() {
+                return this.${l}${i(t)};
               }
-              set${s(r(t))}(v) {
+              set${a(i(t))}(v COMMA_PLACEHOLDER validator) {
                 const typeOfValue = this.utility.getTypeOfObject(v);
-                if (typeOfValue === '${a}') {
-                    this.${u}${r(t)} = v;
+                if (typeOfValue === '${u}') {
+                    this.utility.validateRule(this.getNameSpace() COMMA_PLACEHOLDER '${t}' COMMA_PLACEHOLDER v COMMA_PLACEHOLDER validator);
+                    this.${l}${i(t)} = v;
                     return this;
                 }
-                throw 'Type mismatch: argument of type ${a} expected but got ' + typeOfValue + ' instead';
+                throw 'Type mismatch: argument of type ${u} expected but got ' + typeOfValue + ' instead';
               }
-            `}).join(",").replaceAll(",",""),j=f.map(t=>`
-              get${s(r(t))}At(i) {
+            `})),w=A(g.map(t=>`
+              get${a(i(t))}At(i) {
                 if (i != null) {
-                    if (i >= 0 && i < this.${u}${r(t)}.length) {
-                        return this.${u}${r(t)}[i];
+                    if (i >= 0 && i < this.${l}${i(t)}.length) {
+                        return this.${l}${i(t)}[i];
                     }
                     throw 'Index out of bound!';
                 }
                 throw 'Index should be of type number';
               }
-              set${s(r(t))}At(i parameter_separator v) {
-                if (Array.isArray(this.${u}${r(t)}) && i != null) {
-                    if (i >= 0 && i < this.${u}${r(t)}.length) {
-                        this.${u}${r(t)}[i] = v;
+              set${a(i(t))}At(i COMMA_PLACEHOLDER v COMMA_PLACEHOLDER validator) {
+                if (Array.isArray(this.${l}${i(t)}) && i != null) {
+                    if (i >= 0 && i < this.${l}${i(t)}.length) {
+                        this.utility.validateRule(this.getNameSpace() COMMA_PLACEHOLDER '${t}' COMMA_PLACEHOLDER v COMMA_PLACEHOLDER validator);
+                        this.${l}${i(t)}[i] = v;
                         return this;
                     }
                     throw 'Index out of bound!';
                 }
                 throw 'Index should be of type number';
               }
-            `).join(",").replaceAll(",","").replaceAll("parameter_separator",","),A=f.map(t=>`
-              get${s(r(t))}At(i) {
-                const value = this.${u}${r(t)};
+            `)),L=A(g.map(t=>`
+              get${a(i(t))}At(i) {
+                const value = this.${l}${i(t)};
                 if (this.utility.getTypeOfObject(i) === 'number') {
                     if (i >= 0 && i < value.length) {
                         return value[i];
@@ -49,10 +52,11 @@ var u="#",T="Klass",K="",C="_";var y=e=>typeof e=="object"&&e!=null&&"getMetaInf
                 }
                 throw 'Index should be of type number';
               }
-              set${s(r(t))}At(i parameter_separator v) {
-                const value = this.${u}${r(t)};
+              set${a(i(t))}At(i COMMA_PLACEHOLDER v COMMA_PLACEHOLDER validator) {
+                const value = this.${l}${i(t)};
                 if (this.utility.getTypeOfObject(i) === 'number') {
                     if (i >= 0 && i < value.length) {
+                        this.utility.validateRule(this.getNameSpace() COMMA_PLACEHOLDER '${t}' COMMA_PLACEHOLDER v COMMA_PLACEHOLDER validator);
                         value[i] = v;
                         return this;
                     }
@@ -60,12 +64,21 @@ var u="#",T="Klass",K="",C="_";var y=e=>typeof e=="object"&&e!=null&&"getMetaInf
                 }
                 throw 'Index should be of type number';
               }
-            `).join(",").replaceAll(",","").replaceAll("parameter_separator",","),w=`
-        return class ${s(r(e))} {
-          ${m}
+            `)),S=`
+        return class ${a(i(e))} {
+          ${p}
+          #nameSpace = ${o.trim().length>0?`'${o.trim()}'`:"undefined"};
+
           constructor() {}
-          ${d.validateInput?b:g}
-          ${d.validateInput?A:j}
+
+          getNameSpace() {
+            if (this.#nameSpace != null) {
+                return this.#nameSpace.replace(/_/g, '.').trim();
+            }
+            return this.#nameSpace;
+          }
+          ${M.validateInput?m:d}
+          ${M.validateInput?L:w}
         }
-      `,E=new Function("",w),h=new E;h.prototype!=null&&(h.prototype.toJson=function(){return y(this)?I(this,this.getMetaInfo()):{}},d.cloneable&&(h.prototype.clone=function(){return F(this.toJson())}),h.prototype.getMetaInfo=function(){let t={};return i.length>0&&(t={...t,primitiveKeys:i.toString()}),c.length>0&&(t={...t,objectKeys:c.toString()}),f.length>0&&(t={...t,arrayKeys:f.toString()}),t},h.prototype.utility={getTypeOfObject:l});let p=new h;return i.forEach(t=>{let a=`set${s(r(t))}`;a in p&&typeof p[a]=="function"&&p[a](n[t])}),c.forEach(t=>{let a=`set${s(r(t))}`;a in p&&typeof p[a]=="function"&&p[a](x(s(r(t)),n[t]))}),f.forEach(t=>{let a=`set${s(r(t))}`;if(a in p&&typeof p[a]=="function"){let S=n[t];if(Array.isArray(S)){let O=S.map(($,v)=>{if(l($)==="object")return x(s(r(`${t}${v}`)),$);if(l($)==="array")throw"Multidimensional array not supported. Yet!";return $});p[a](O)}}}),p};function F(e,n,o){if(l(e)!=="object")throw"Expecting a JavaScript Object notation!";return n!=null&&_(n),x(s(r(o??`${T}${N()}`)),e)}var I=function(e,n){let o={};return n.primitiveKeys!=null&&n.primitiveKeys.length>0&&n.primitiveKeys.split(",").forEach(i=>{let c=`get${s(r(i))}`;M(e,c)&&(o={...o,[i]:e[c]()})}),n.objectKeys!=null&&n.objectKeys.length>0&&n.objectKeys.split(",").forEach(i=>{let c=`get${s(r(i))}`;if(M(e,c)){let f=e[c]();y(f)&&(o={...o,[i]:I(f,f.getMetaInfo())})}}),n.arrayKeys!=null&&n.arrayKeys.length>0&&n.arrayKeys.split(",").forEach(i=>{let c=`get${s(r(i))}`;if(M(e,c)){let m=e[c]().map(g=>{let b=l(g);return b==="array"?[]:b==="object"&&y(g)?I(g,g.getMetaInfo()):g});o={...o,[i]:m}}}),o};function G(e){if(Array.isArray(e)&&e.length>0)return e.map(n=>{if(y(n))return I(n,n.getMetaInfo());throw"Meta info is missing in the object!"});if(l(e)==="object"){if(y(e))return I(e,e.getMetaInfo());throw"Meta info is missing in the object!"}throw"Transmuted object or an array of transmuted object(s) expected!"}export{B as memorySizeOf,F as transmute,G as unTransmute};
+      `,x=new Function("",S),E=new x;E.prototype!=null&&(E.prototype.toJson=function(){return O(this)?$(this,this.getMetaInfo()):{}},M.cloneable&&(E.prototype.clone=function(){return H(this.toJson())}),E.prototype.getMetaInfo=function(){let t={};return s.length>0&&(t={...t,primitiveKeys:s.toString()}),f.length>0&&(t={...t,objectKeys:f.toString()}),g.length>0&&(t={...t,arrayKeys:g.toString()}),t},E.prototype.utility={getTypeOfObject:c,validateRule:T});let h=new E;return s.forEach(t=>{let u=`set${a(i(t))}`;u in h&&typeof h[u]=="function"&&h[u](n[t])}),f.forEach(t=>{let u=`set${a(i(t))}`;u in h&&typeof h[u]=="function"&&h[u](I(a(i(t)),n[t],o.trim().length>0?`${o}_${t}`:t))}),g.forEach(t=>{let u=`set${a(i(t))}`;if(u in h&&typeof h[u]=="function"){let b=n[t];if(Array.isArray(b)){let v=b.map((y,_)=>{if(c(y)==="object")return I(a(i(`${t}${_}`)),y,o.trim().length>0?`${o}_${t}`:t);if(c(y)==="array")throw"Multidimensional array not supported. Yet!";return y});h[u](v)}}}),h};function H(e,n,o){if(c(e)!=="object")throw"Expecting a JavaScript Object notation!";return n!=null&&N(n),I(a(i(o??`${R}${P()}`)),e)}var $=function(e,n){let o={};return n.primitiveKeys!=null&&n.primitiveKeys.length>0&&n.primitiveKeys.split(",").forEach(r=>{let s=`get${a(i(r))}`;C(e,s)&&(o={...o,[r]:e[s]()})}),n.objectKeys!=null&&n.objectKeys.length>0&&n.objectKeys.split(",").forEach(r=>{let s=`get${a(i(r))}`;if(C(e,s)){let f=e[s]();O(f)&&(o={...o,[r]:$(f,f.getMetaInfo())})}}),n.arrayKeys!=null&&n.arrayKeys.length>0&&n.arrayKeys.split(",").forEach(r=>{let s=`get${a(i(r))}`;if(C(e,s)){let g=e[s]().map(p=>{let d=c(p);return d==="array"?[]:d==="object"&&O(p)?$(p,p.getMetaInfo()):p});o={...o,[r]:g}}}),o};function F(e){if(Array.isArray(e)&&e.length>0)return e.map(n=>{if(O(n))return $(n,n.getMetaInfo());throw"Meta info is missing in the object!"});if(c(e)==="object"){if(O(e))return $(e,e.getMetaInfo());throw"Meta info is missing in the object!"}throw"Transmuted object or an array of transmuted object(s) expected!"}export{K as memorySizeOf,H as transmute,F as unTransmute};
 //# sourceMappingURL=index.mjs.map
