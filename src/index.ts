@@ -5,7 +5,7 @@
 
 /*** CONSTANTS ***/
 const HASH: string = '#';
-const CLASSNAME: string = 'Klass';
+const CLASSNAME: string = 'Transmute';
 const EMPTY_STRING: string = '';
 const UNDERSCORE: string = '_';
 enum ERRORS {
@@ -31,9 +31,14 @@ export type GetterFn = () => unknown;
 
 export type GetterFnArray = () => unknown[];
 
+export type ValidatorFn = (value: unknown) => boolean | string;
+
 export type Config = {
     validateInput?: boolean;
     cloneable?: boolean;
+    rules?: {
+        [key: string]: ValidatorFn;
+    };
 };
 
 /*** UTILITY ***/
@@ -51,6 +56,37 @@ const getTypeOfObject = function (o: unknown) {
         .toLowerCase();
 };
 
+/* Validate rule for a property */
+const validateRule = function (nameSpace: string | undefined, key: string, value: unknown, validator?: ValidatorFn) {
+    if (config.rules != null) {
+        const nsKey = nameSpace != null && nameSpace.trim().length > 0 ? `${nameSpace}.${key}` : undefined;
+        validator = validator ?? (nsKey != null && config.rules[nsKey] != null ? config.rules[nsKey] : config.rules[key]);
+
+        const validate = (v: unknown, i?: number) => {
+            if (validator != null) {
+                const validationResponse = validator(v);
+                if (validationResponse !== true) {
+                    if (typeof validationResponse === 'string') {
+                        if (i != null) {
+                            throw new Error(`Validation error at index ${i} [${nsKey}]: ${validationResponse}`);
+                        }
+                        throw new Error(`Validation error [${nsKey}]: ${validationResponse}`);
+                    }
+                    throw new Error(`Validation failed for property ${nsKey} with value ${v}`);
+                }
+            }
+        };
+
+        if (validator != null && getTypeOfObject(validator) === 'function' && value != null) {
+            if (Array.isArray(value)) {
+                value.forEach(validate);
+                return;
+            }
+            validate(value);
+        }
+    }
+};
+
 const normalize = function (s: string) {
     if (!isNaN(Number(s[0]))) {
         s = '_' + s;
@@ -62,10 +98,15 @@ const capitalize = function (s: string) {
     return s[0].toUpperCase() + s.slice(1);
 };
 
+const generateStringFromArray = function (s: string[], joiner = ',', separator = ',', placeholder = ' COMMA_PLACEHOLDER'): string {
+    return s.join(joiner).replaceAll(separator, '').replaceAll(placeholder, ',');
+};
+
 // default configuration
 let config: Config = {
     validateInput: false,
-    cloneable: true
+    cloneable: true,
+    rules: {}
 };
 
 const setConfig = function (cfg: Config) {
@@ -88,41 +129,39 @@ export const memorySizeOf = function (obj: IStringIndex) {
 };
 
 /*** TRANSMUTE ***/
-const generateDynamicClassInstance = function (className: string, o: IStringIndex) {
+const generateDynamicClassInstance = function (className: string, o: IStringIndex, nameSpace = '') {
     const keys = Object.keys(o);
     const primitiveKeys = keys.filter((key) => getTypeOfObject(o[key]) !== 'object' && getTypeOfObject(o[key]) !== 'array');
     const objectKeys = keys.filter((key) => getTypeOfObject(o[key]) === 'object');
     const arrayKeys = keys.filter((key) => getTypeOfObject(o[key]) === 'array');
-    const privateProperties = keys
-        .map((key) => `${HASH}${normalize(key)};`)
-        .join(',')
-        .replaceAll(',', '');
+    const privateProperties = generateStringFromArray(keys.map((key) => `${HASH}${normalize(key)};`));
 
-    const accessorMethods = keys
-        .map((key) => {
+    const accessorMethods = generateStringFromArray(
+        keys.map((key) => {
             return `
               get${capitalize(normalize(key))}() {
                 return this.${HASH}${normalize(key)};
               }
-              set${capitalize(normalize(key))}(v) {
+              set${capitalize(normalize(key))}(v COMMA_PLACEHOLDER validator) {
+                this.utility.validateRule(this.getNameSpace() COMMA_PLACEHOLDER '${key}' COMMA_PLACEHOLDER v COMMA_PLACEHOLDER validator);
                 this.${HASH}${normalize(key)} = v;
                 return this;
               }
             `;
         })
-        .join(',')
-        .replaceAll(',', '');
+    );
 
-    const accessorMethodsWithValidation = keys
-        .map((key) => {
+    const accessorMethodsWithValidation = generateStringFromArray(
+        keys.map((key) => {
             const valueType = getTypeOfObject(o[key]);
             return `
               get${capitalize(normalize(key))}() {
                 return this.${HASH}${normalize(key)};
               }
-              set${capitalize(normalize(key))}(v) {
+              set${capitalize(normalize(key))}(v COMMA_PLACEHOLDER validator) {
                 const typeOfValue = this.utility.getTypeOfObject(v);
                 if (typeOfValue === '${valueType}') {
+                    this.utility.validateRule(this.getNameSpace() COMMA_PLACEHOLDER '${key}' COMMA_PLACEHOLDER v COMMA_PLACEHOLDER validator);
                     this.${HASH}${normalize(key)} = v;
                     return this;
                 }
@@ -130,11 +169,10 @@ const generateDynamicClassInstance = function (className: string, o: IStringInde
               }
             `;
         })
-        .join(',')
-        .replaceAll(',', '');
+    );
 
-    const indexedAccessorMethods = arrayKeys
-        .map((key) => {
+    const indexedAccessorMethods = generateStringFromArray(
+        arrayKeys.map((key) => {
             return `
               get${capitalize(normalize(key))}At(i) {
                 if (i != null) {
@@ -145,9 +183,10 @@ const generateDynamicClassInstance = function (className: string, o: IStringInde
                 }
                 throw 'Index should be of type number';
               }
-              set${capitalize(normalize(key))}At(i parameter_separator v) {
+              set${capitalize(normalize(key))}At(i COMMA_PLACEHOLDER v COMMA_PLACEHOLDER validator) {
                 if (Array.isArray(this.${HASH}${normalize(key)}) && i != null) {
                     if (i >= 0 && i < this.${HASH}${normalize(key)}.length) {
+                        this.utility.validateRule(this.getNameSpace() COMMA_PLACEHOLDER '${key}' COMMA_PLACEHOLDER v COMMA_PLACEHOLDER validator);
                         this.${HASH}${normalize(key)}[i] = v;
                         return this;
                     }
@@ -157,12 +196,10 @@ const generateDynamicClassInstance = function (className: string, o: IStringInde
               }
             `;
         })
-        .join(',')
-        .replaceAll(',', '')
-        .replaceAll('parameter_separator', ',');
+    );
 
-    const indexedAccessorMethodsWithValidation = arrayKeys
-        .map((key) => {
+    const indexedAccessorMethodsWithValidation = generateStringFromArray(
+        arrayKeys.map((key) => {
             return `
               get${capitalize(normalize(key))}At(i) {
                 const value = this.${HASH}${normalize(key)};
@@ -174,10 +211,11 @@ const generateDynamicClassInstance = function (className: string, o: IStringInde
                 }
                 throw 'Index should be of type number';
               }
-              set${capitalize(normalize(key))}At(i parameter_separator v) {
+              set${capitalize(normalize(key))}At(i COMMA_PLACEHOLDER v COMMA_PLACEHOLDER validator) {
                 const value = this.${HASH}${normalize(key)};
                 if (this.utility.getTypeOfObject(i) === 'number') {
                     if (i >= 0 && i < value.length) {
+                        this.utility.validateRule(this.getNameSpace() COMMA_PLACEHOLDER '${key}' COMMA_PLACEHOLDER v COMMA_PLACEHOLDER validator);
                         value[i] = v;
                         return this;
                     }
@@ -187,14 +225,21 @@ const generateDynamicClassInstance = function (className: string, o: IStringInde
               }
             `;
         })
-        .join(',')
-        .replaceAll(',', '')
-        .replaceAll('parameter_separator', ',');
+    );
 
     const dynamicClassDefinition = `
         return class ${capitalize(normalize(className))} {
           ${privateProperties}
+          #nameSpace = ${nameSpace.trim().length > 0 ? `'${nameSpace.trim()}'` : 'undefined'};
+
           constructor() {}
+
+          getNameSpace() {
+            if (this.#nameSpace != null) {
+                return this.#nameSpace.replace(/_/g, '.').trim();
+            }
+            return this.#nameSpace;
+          }
           ${config.validateInput ? accessorMethodsWithValidation : accessorMethods}
           ${config.validateInput ? indexedAccessorMethodsWithValidation : indexedAccessorMethods}
         }
@@ -242,7 +287,8 @@ const generateDynamicClassInstance = function (className: string, o: IStringInde
         };
         // Utility to check the type
         dynamicClass.prototype.utility = {
-            getTypeOfObject
+            getTypeOfObject,
+            validateRule
         };
     }
 
@@ -265,7 +311,13 @@ const generateDynamicClassInstance = function (className: string, o: IStringInde
     objectKeys.forEach((key: string): void => {
         const setAccessorMethod = `set${capitalize(normalize(key))}`;
         if (setAccessorMethod in instance && typeof instance[setAccessorMethod] === 'function') {
-            instance[setAccessorMethod](generateDynamicClassInstance(capitalize(normalize(key)), o[key] as IStringIndex));
+            instance[setAccessorMethod](
+                generateDynamicClassInstance(
+                    capitalize(normalize(key)),
+                    o[key] as IStringIndex,
+                    nameSpace.trim().length > 0 ? `${nameSpace}_${key}` : key
+                )
+            );
         }
     });
 
@@ -279,7 +331,11 @@ const generateDynamicClassInstance = function (className: string, o: IStringInde
             if (Array.isArray(values)) {
                 const valueInstances = values.map((value, index) => {
                     if (getTypeOfObject(value) === 'object') {
-                        return generateDynamicClassInstance(capitalize(normalize(`${key}${index}`)), value as IStringIndex);
+                        return generateDynamicClassInstance(
+                            capitalize(normalize(`${key}${index}`)),
+                            value as IStringIndex,
+                            nameSpace.trim().length > 0 ? `${nameSpace}_${key}` : key
+                        );
                     }
                     if (getTypeOfObject(value) === 'array') {
                         throw 'Multidimensional array not supported. Yet!';
