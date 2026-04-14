@@ -129,7 +129,7 @@ export const memorySizeOf = function (obj: IStringIndex) {
 };
 
 /*** TRANSMUTE ***/
-const generateDynamicClassInstance = function (className: string, o: IStringIndex, nameSpace = '') {
+const generateDynamicClassInstance = function (className: string, o: IStringIndex, nameSpace = 'root') {
     const keys = Object.keys(o);
     const primitiveKeys = keys.filter((key) => getTypeOfObject(o[key]) !== 'object' && getTypeOfObject(o[key]) !== 'array');
     const objectKeys = keys.filter((key) => getTypeOfObject(o[key]) === 'object');
