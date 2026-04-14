@@ -19,6 +19,7 @@
     "build": "npm run clean:dist && npm run lint && tsc && npm run bundler:esbuild -- --minify=true",
     "build:dev": "npm run clean:dist && npm run lint && tsc && npm run bundler:esbuild",
     "build:test": "npm run build && npm run test",
+    "build:dev:test": "npm run build:dev && npm run test",
     "build:scratch": "npm install && npm run build:test"
   },
   "repository": {
