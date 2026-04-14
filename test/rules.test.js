@@ -106,12 +106,12 @@ describe('Custom validations via rules', () => {
                     }
                     return true;
                 },
-                'info.contacts': (value) =>
+                'root.info.contacts': (value) =>
                     contactsPattern1.test(value) || 'Invalid contact number, expected format: +xx-xxx-xxx-xxxx or +xx xxx xxx xxxx',
-                'departments.manager.contact': (value) =>
+                'root.departments.manager.contact': (value) =>
                     contactsPattern1.test(value) || 'Invalid contact number, expected format: +xx-xxx-xxx-xxxx or +xx xxx xxx xxxx',
-                'departments.employees.projects.id': (value) => value.startsWith('P-') || 'Project ID should start with P-',
-                'departments.employees.projects.status': (value) => projectStatuses.includes(value) || 'Invalid project status'
+                'root.departments.employees.projects.id': (value) => value.startsWith('P-') || 'Project ID should start with P-',
+                'root.departments.employees.projects.status': (value) => projectStatuses.includes(value) || 'Invalid project status'
             }
         });
     } catch (e) {
