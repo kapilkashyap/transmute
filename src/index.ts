@@ -31,7 +31,34 @@ export type GetterFn = () => unknown;
 
 export type GetterFnArray = () => unknown[];
 
-export type ValidatorFn = (value: unknown) => boolean | string;
+export type ValidatorContext = {
+    key: string; // Property name (e.g., "password")
+    path: string; // Full namespaced path (e.g., "root.account.password")
+    value: unknown; // The value being validated
+    parentObject?: unknown; // The immediate parent object
+    rootObject?: unknown; // The root transmuted object
+    index?: number; // Array index if validating array element
+    getParent: () => unknown; // Function to safely access parent
+    getRoot: () => unknown; // Function to safely access root
+};
+
+export type ValidatorFn = (value: unknown, context: ValidatorContext) => boolean | string;
+
+type DynamicClassInstance = IStringIndex & {
+    setInternalReferences: (root: unknown, parent: unknown, index?: number) => unknown;
+    toJson: () => IStringIndex;
+    clone: () => IStringIndex;
+    getMetaInfo: () => MetaInfo;
+    utility: {
+        getTypeOfObject: typeof getTypeOfObject;
+        validateRule: typeof validateRule;
+    };
+};
+
+type DynamicClassConstructor = {
+    new (): DynamicClassInstance;
+    prototype: IStringIndex;
+};
 
 export type Config = {
     validateInput?: boolean;
@@ -57,29 +84,61 @@ const getTypeOfObject = function (o: unknown) {
 };
 
 /* Validate rule for a property */
-const validateRule = function (nameSpace: string | undefined, key: string, value: unknown, validator?: ValidatorFn) {
+const validateRule = function (
+    nameSpace: string | undefined,
+    key: string,
+    value: unknown,
+    validator?: ValidatorFn,
+    parentObject?: unknown,
+    rootObject?: unknown,
+    index?: number
+) {
     if (config.rules != null) {
         const nsKey = nameSpace != null && nameSpace.trim().length > 0 ? `${nameSpace}.${key}` : undefined;
-        validator = validator ?? (nsKey != null && config.rules[nsKey] != null ? config.rules[nsKey] : config.rules[key]);
+
+        let usedKey = key;
+        const contextPath = nameSpace === 'root' ? key : (nsKey ?? key);
+        if (nsKey != null && config.rules[nsKey] != null) {
+            validator = validator ?? config.rules[nsKey];
+            usedKey = nsKey;
+        } else if (config.rules && config.rules[key] != null) {
+            validator = validator ?? config.rules[key];
+            usedKey = key;
+        }
 
         const validate = (v: unknown, i?: number) => {
             if (validator != null) {
-                const validationResponse = validator(v);
+                const finalIndex = i ?? index ?? (parentObject as { getIndex?: () => number })?.getIndex?.();
+                // Pass the value together with its location and object-graph references
+                // so validators can enforce rules involving sibling, parent, root, or array data.
+                const context: ValidatorContext = {
+                    key,
+                    path: contextPath,
+                    value: v,
+                    parentObject,
+                    rootObject,
+                    index: finalIndex,
+                    getParent: () => parentObject,
+                    getRoot: () => rootObject
+                };
+                const validationResponse = validator(v, context);
+
                 if (validationResponse !== true) {
                     if (typeof validationResponse === 'string') {
-                        if (i != null) {
-                            throw new Error(`Validation error at index ${i} [${nsKey}]: ${validationResponse}`);
+                        const errorIndex = i ?? index ?? (parentObject as { getIndex?: () => number })?.getIndex?.();
+                        if (errorIndex != null) {
+                            throw new Error(`Validation error at index ${errorIndex} [${usedKey}]: ${validationResponse}`);
                         }
-                        throw new Error(`Validation error [${nsKey}]: ${validationResponse}`);
+                        throw new Error(`Validation error [${usedKey}]: ${validationResponse}`);
                     }
-                    throw new Error(`Validation failed for property ${nsKey} with value ${v}`);
+                    throw new Error(`Validation failed for property ${usedKey} with value ${v}`);
                 }
             }
         };
 
         if (validator != null && getTypeOfObject(validator) === 'function' && value != null) {
             if (Array.isArray(value)) {
-                value.forEach(validate);
+                value.forEach((v, idx) => validate(v, idx));
                 return;
             }
             validate(value);
@@ -129,12 +188,29 @@ export const memorySizeOf = function (obj: IStringIndex) {
 };
 
 /*** TRANSMUTE ***/
-const generateDynamicClassInstance = function (className: string, o: IStringIndex, nameSpace = 'root') {
+const generateDynamicClassInstance = function (
+    className: string,
+    o: IStringIndex,
+    nameSpace = 'root',
+    root?: unknown,
+    parent?: unknown,
+    index?: number
+) {
     const keys = Object.keys(o);
     const primitiveKeys = keys.filter((key) => getTypeOfObject(o[key]) !== 'object' && getTypeOfObject(o[key]) !== 'array');
     const objectKeys = keys.filter((key) => getTypeOfObject(o[key]) === 'object');
     const arrayKeys = keys.filter((key) => getTypeOfObject(o[key]) === 'array');
     const privateProperties = generateStringFromArray(keys.map((key) => `${HASH}${normalize(key)};`));
+    const initializationMethods = generateStringFromArray(
+        keys.map((key) => {
+            return `
+                            initialize${capitalize(normalize(key))}(v) {
+                                this.${HASH}${normalize(key)} = v;
+                                return this;
+                            }
+                        `;
+        })
+    );
 
     const accessorMethods = generateStringFromArray(
         keys.map((key) => {
@@ -143,7 +219,14 @@ const generateDynamicClassInstance = function (className: string, o: IStringInde
                 return this.${HASH}${normalize(key)};
               }
               set${capitalize(normalize(key))}(v COMMA_PLACEHOLDER validator) {
-                this.utility.validateRule(this.getNameSpace() COMMA_PLACEHOLDER '${key}' COMMA_PLACEHOLDER v COMMA_PLACEHOLDER validator);
+                this.utility.validateRule(
+                  this.getNameSpace() COMMA_PLACEHOLDER 
+                  '${key}' COMMA_PLACEHOLDER 
+                  v COMMA_PLACEHOLDER 
+                  validator COMMA_PLACEHOLDER
+                  this COMMA_PLACEHOLDER
+                  this.getRoot()
+                );
                 this.${HASH}${normalize(key)} = v;
                 return this;
               }
@@ -161,7 +244,14 @@ const generateDynamicClassInstance = function (className: string, o: IStringInde
               set${capitalize(normalize(key))}(v COMMA_PLACEHOLDER validator) {
                 const typeOfValue = this.utility.getTypeOfObject(v);
                 if (typeOfValue === '${valueType}') {
-                    this.utility.validateRule(this.getNameSpace() COMMA_PLACEHOLDER '${key}' COMMA_PLACEHOLDER v COMMA_PLACEHOLDER validator);
+                    this.utility.validateRule(
+                      this.getNameSpace() COMMA_PLACEHOLDER 
+                      '${key}' COMMA_PLACEHOLDER 
+                      v COMMA_PLACEHOLDER 
+                      validator COMMA_PLACEHOLDER
+                      this COMMA_PLACEHOLDER
+                      this.getRoot()
+                    );
                     this.${HASH}${normalize(key)} = v;
                     return this;
                 }
@@ -186,7 +276,15 @@ const generateDynamicClassInstance = function (className: string, o: IStringInde
               set${capitalize(normalize(key))}At(i COMMA_PLACEHOLDER v COMMA_PLACEHOLDER validator) {
                 if (Array.isArray(this.${HASH}${normalize(key)}) && i != null) {
                     if (i >= 0 && i < this.${HASH}${normalize(key)}.length) {
-                        this.utility.validateRule(this.getNameSpace() COMMA_PLACEHOLDER '${key}' COMMA_PLACEHOLDER v COMMA_PLACEHOLDER validator);
+                        this.utility.validateRule(
+                          this.getNameSpace() COMMA_PLACEHOLDER 
+                          '${key}' COMMA_PLACEHOLDER 
+                          v COMMA_PLACEHOLDER 
+                          validator COMMA_PLACEHOLDER
+                          this COMMA_PLACEHOLDER
+                          this.getRoot() COMMA_PLACEHOLDER
+                          i
+                        );
                         this.${HASH}${normalize(key)}[i] = v;
                         return this;
                     }
@@ -215,7 +313,15 @@ const generateDynamicClassInstance = function (className: string, o: IStringInde
                 const value = this.${HASH}${normalize(key)};
                 if (this.utility.getTypeOfObject(i) === 'number') {
                     if (i >= 0 && i < value.length) {
-                        this.utility.validateRule(this.getNameSpace() COMMA_PLACEHOLDER '${key}' COMMA_PLACEHOLDER v COMMA_PLACEHOLDER validator);
+                        this.utility.validateRule(
+                          this.getNameSpace() COMMA_PLACEHOLDER 
+                          '${key}' COMMA_PLACEHOLDER 
+                          v COMMA_PLACEHOLDER 
+                          validator COMMA_PLACEHOLDER
+                          this COMMA_PLACEHOLDER
+                          this.getRoot() COMMA_PLACEHOLDER
+                          i
+                        );
                         value[i] = v;
                         return this;
                     }
@@ -231,6 +337,9 @@ const generateDynamicClassInstance = function (className: string, o: IStringInde
         return class ${capitalize(normalize(className))} {
           ${privateProperties}
           #nameSpace = ${nameSpace.trim().length > 0 ? `'${nameSpace.trim()}'` : 'undefined'};
+          #root = undefined;
+          #parent = undefined;
+          #index = undefined;
 
           constructor() {}
 
@@ -240,18 +349,36 @@ const generateDynamicClassInstance = function (className: string, o: IStringInde
             }
             return this.#nameSpace;
           }
+
+          setInternalReferences(root, parent, index) {
+            this.#root = root;
+            this.#parent = parent;
+            this.#index = index;
+            return this;
+          }
+
+          getParent() {
+            return this.#parent;
+          }
+
+          getRoot() {
+            return this.#root;
+          }
+
+          getIndex() {
+            return this.#index;
+          }
+
+          ${initializationMethods}
+
           ${config.validateInput ? accessorMethodsWithValidation : accessorMethods}
           ${config.validateInput ? indexedAccessorMethodsWithValidation : indexedAccessorMethods}
         }
       `;
 
     // This will generate an anonymous iife that returns a Class
-    const dynamicClassWrapper = new Function('', dynamicClassDefinition);
-
-    // TODO: Figure out a way to get rid of this error
-    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-    // @ts-expect-error
-    const dynamicClass = new dynamicClassWrapper();
+    const dynamicClassFactory = new Function('', dynamicClassDefinition) as unknown as () => DynamicClassConstructor;
+    const dynamicClass = dynamicClassFactory();
 
     // Attach utility methods to the prototype of the Class
     if (dynamicClass.prototype != null) {
@@ -266,7 +393,7 @@ const generateDynamicClassInstance = function (className: string, o: IStringInde
         // Config driven
         if (config.cloneable) {
             // Create a clone of the transmuted object
-            dynamicClass.prototype.clone = function () {
+            dynamicClass.prototype.clone = function (this: DynamicClassInstance) {
                 return transmute(this.toJson());
             };
         }
@@ -294,55 +421,67 @@ const generateDynamicClassInstance = function (className: string, o: IStringInde
 
     const instance = new dynamicClass();
 
-    /** --- Calling set accessor methods on the instance to initialize the private properties --- **/
-    // iterate over the primitive keys
-    // if we find an object then we generate a dynamic class and assign its value
-    // else, we directly set the value the property returns
+    // Store navigation metadata on every generated instance. The root reference
+    // enables access to the full object graph, the parent reference enables
+    // sibling/parent lookups, and the index identifies array elements in validator context.
+    const rootObj = root || instance;
+    const parentObj = parent || instance;
+    instance.setInternalReferences(rootObj, parentObj, index);
+
+    /** --- Initialize private properties without invoking public validation setters --- **/
+    // Initialize primitive values directly through the generated internal method.
+    // This construction path bypasses public setters so validation is reserved for updates.
     primitiveKeys.forEach((key: string): void => {
-        const setAccessorMethod = `set${capitalize(normalize(key))}`;
-        if (setAccessorMethod in instance && typeof instance[setAccessorMethod] === 'function') {
-            instance[setAccessorMethod](o[key]);
+        const initializeAccessorMethod = `initialize${capitalize(normalize(key))}`;
+        if (initializeAccessorMethod in instance && typeof instance[initializeAccessorMethod] === 'function') {
+            instance[initializeAccessorMethod](o[key]);
         }
     });
 
-    // iterate over the object type keys
-    // if we find an object then we generate a dynamic class and assign its value
-    // else, we directly set the value the property returns
+    // Recursively generate nested objects with their root, parent, and index metadata,
+    // then assign each child through its internal initializer without triggering validation.
     objectKeys.forEach((key: string): void => {
-        const setAccessorMethod = `set${capitalize(normalize(key))}`;
-        if (setAccessorMethod in instance && typeof instance[setAccessorMethod] === 'function') {
-            instance[setAccessorMethod](
-                generateDynamicClassInstance(
-                    capitalize(normalize(key)),
-                    o[key] as IStringIndex,
-                    nameSpace.trim().length > 0 ? `${nameSpace}_${key}` : key
-                )
+        const initializeAccessorMethod = `initialize${capitalize(normalize(key))}`;
+        if (initializeAccessorMethod in instance && typeof instance[initializeAccessorMethod] === 'function') {
+            const nestedInstance = generateDynamicClassInstance(
+                capitalize(normalize(key)),
+                o[key] as IStringIndex,
+                nameSpace.trim().length > 0 ? `${nameSpace}_${key}` : key,
+                rootObj,
+                instance
             );
+            instance[initializeAccessorMethod](nestedInstance);
         }
     });
 
-    // iterate over the array type keys
-    // we map through our array and if we find an object then we generate a dynamic class and assign its value
-    // else, we simply return the value
+    // Build arrays by recursively generating object elements while preserving primitive values,
+    // then assign the completed array through the internal initializer.
     arrayKeys.forEach((key: string): void => {
-        const setAccessorMethod = `set${capitalize(normalize(key))}`;
-        if (setAccessorMethod in instance && typeof instance[setAccessorMethod] === 'function') {
+        const initializeAccessorMethod = `initialize${capitalize(normalize(key))}`;
+        if (initializeAccessorMethod in instance && typeof instance[initializeAccessorMethod] === 'function') {
             const values = o[key];
             if (Array.isArray(values)) {
-                const valueInstances = values.map((value, index) => {
+                if (values.some((value) => getTypeOfObject(value) === 'object')) {
+                    instance[initializeAccessorMethod]([]);
+                }
+                const valueInstances = values.map((value, idx) => {
                     if (getTypeOfObject(value) === 'object') {
-                        return generateDynamicClassInstance(
-                            capitalize(normalize(`${key}${index}`)),
+                        const nestedInstance = generateDynamicClassInstance(
+                            capitalize(normalize(`${key}${idx}`)),
                             value as IStringIndex,
-                            nameSpace.trim().length > 0 ? `${nameSpace}_${key}` : key
+                            nameSpace.trim().length > 0 ? `${nameSpace}_${key}` : key,
+                            rootObj,
+                            instance,
+                            idx
                         );
+                        return nestedInstance;
                     }
                     if (getTypeOfObject(value) === 'array') {
                         throw 'Multidimensional array not supported. Yet!';
                     }
                     return value;
                 });
-                instance[setAccessorMethod](valueInstances);
+                instance[initializeAccessorMethod](valueInstances);
             }
         }
     });
@@ -358,7 +497,11 @@ export function transmute(o: IStringIndex, config?: Config, className?: string):
         setConfig(config);
     }
     // return the transmuted JSON with private properties and accessor methods
-    return generateDynamicClassInstance(capitalize(normalize(className ?? `${CLASSNAME}${randomNumber()}`)), o);
+    const instance = generateDynamicClassInstance(capitalize(normalize(className ?? `${CLASSNAME}${randomNumber()}`)), o);
+    // Keep the root instance as its own root reference so every nested model can
+    // access the complete transmuted object graph through ValidatorContext.getRoot().
+    instance.setInternalReferences(instance, instance, undefined);
+    return instance;
 }
 
 /*** UNTRANSMUTE ***/

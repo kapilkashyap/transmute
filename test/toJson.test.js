@@ -36,7 +36,7 @@ describe('Converting transmuted object to JSON', () => {
         try {
             JSON.parse(transmutedUser);
         } catch (e) {
-            expect(e.toString()).toBe('SyntaxError: Unexpected token o in JSON at position 1');
+            expect(e.toString()).toBe('SyntaxError: "[object Object]" is not valid JSON');
         }
     });
 
