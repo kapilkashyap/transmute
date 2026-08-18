@@ -1,13 +1,13 @@
-var f="#",T="Transmute",N="",F="_";var m=n=>typeof n=="object"&&n!=null&&"getMetaInfo"in n,D=(n,e)=>typeof n=="object"&&n!=null&&e in n,K=function(n=9,e=2){return Math.random().toFixed(n).substring(e)},g=function(n){let e=Object.prototype.toString.call(n);return e.substring(1,e.length-1).split(/\s/)[1].toLowerCase()},V=function(n,e,o,i,a,M,d){if(p.rules!=null){let l=n!=null&&n.trim().length>0?`${n}.${e}`:void 0,h=e,E=n==="root"?e:l??e;l!=null&&p.rules[l]!=null?(i=i??p.rules[l],h=l):p.rules&&p.rules[e]!=null&&(i=i??p.rules[e],h=e);let b=(O,A)=>{if(i!=null){let w=A??d??a?.getIndex?.(),C=i(O,{key:e,path:E,value:O,parentObject:a,rootObject:M,index:w,getParent:()=>a,getRoot:()=>M});if(C!==!0){if(typeof C=="string"){let R=A??d??a?.getIndex?.();throw R!=null?new Error(`Validation error at index ${R} [${h}]: ${C}`):new Error(`Validation error [${h}]: ${C}`)}throw new Error(`Validation failed for property ${h} with value ${O}`)}}};if(i!=null&&g(i)==="function"&&o!=null){if(Array.isArray(o)){o.forEach((O,A)=>b(O,A));return}b(o)}}},r=function(n){return isNaN(Number(n[0]))||(n="_"+n),n.toString().replace(/-/g,F).replace(/\s|\./g,N)},s=function(n){return n[0].toUpperCase()+n.slice(1)},$=function(n,e=",",o=",",i=" COMMA_PLACEHOLDER"){return n.join(e).replaceAll(o,"").replaceAll(i,",")},p={validateInput:!1,cloneable:!0,rules:{}},B=function(n){p={...p,...n}},U=function(n){let e=function(i){return i<1024?i+" bytes":i<Math.pow(1024,2)?(i/1024).toFixed(6)+" KiB":i<Math.pow(1024,3)?(i/Math.pow(1024,2)).toFixed(6)+" MiB":(i/Math.pow(1024,3)).toFixed(6)+" GiB"},o=JSON.stringify(n);return e(encodeURI(o).split(/%(?:u[0-9A-F]{2})?[0-9A-F]{2}|./).length-1)},S=function(n,e,o="root",i,a,M){let d=Object.keys(e),l=d.filter(t=>g(e[t])!=="object"&&g(e[t])!=="array"),h=d.filter(t=>g(e[t])==="object"),E=d.filter(t=>g(e[t])==="array"),b=$(d.map(t=>`${f}${r(t)};`)),O=$(d.map(t=>`
-                            initialize${s(r(t))}(v) {
-                                this.${f}${r(t)} = v;
+var d="#",V="Transmute",K="",z="_";var R=n=>typeof n=="object"&&n!=null&&"getMetaInfo"in n,S=(n,e)=>typeof n=="object"&&n!=null&&e in n,B=function(n=9,e=2){return Math.random().toFixed(n).substring(e)},g=function(n){let e=Object.prototype.toString.call(n);return e.substring(1,e.length-1).split(/\s/)[1].toLowerCase()},G=function(n,e,r,o,s,p,C,l){if(n.rules!=null){let c=e!=null&&e.trim().length>0?`${e}.${r}`:void 0,h=r,x=e==="root"?r:c??r;c!=null&&n.rules[c]!=null?(s=s??n.rules[c],h=c):n.rules[r]!=null&&(s=s??n.rules[r],h=r);let M=(E,I)=>{if(s!=null){let _=I??l??p?.getIndex?.(),y=s(E,{key:r,path:x,value:E,parentObject:p,rootObject:C,index:_,getParent:()=>p,getRoot:()=>C});if(y!==!0){if(typeof y=="string"){let w=I??l??p?.getIndex?.();throw w!=null?new Error(`Validation error at index ${w} [${h}]: ${y}`):new Error(`Validation error [${h}]: ${y}`)}throw new Error(`Validation failed for property ${h} with value ${E}`)}}};if(s!=null&&g(s)==="function"&&o!=null){if(Array.isArray(o)){o.forEach((E,I)=>M(E,I));return}M(o)}}},i=function(n){return isNaN(Number(n[0]))||(n="_"+n),n.toString().replace(/-/g,z).replace(/\s|\./g,K)},a=function(n){return n[0].toUpperCase()+n.slice(1)},b=function(n,e=",",r=",",o=" COMMA_PLACEHOLDER"){return n.join(e).replaceAll(r,"").replaceAll(o,",")},T=function(n){return{validateInput:n?.validateInput??!1,cloneable:n?.cloneable??!0,rules:{...n?.rules??{}}}},X=function(n){let e=function(o){return o<1024?o+" bytes":o<Math.pow(1024,2)?(o/1024).toFixed(6)+" KiB":o<Math.pow(1024,3)?(o/Math.pow(1024,2)).toFixed(6)+" MiB":(o/Math.pow(1024,3)).toFixed(6)+" GiB"},r=JSON.stringify(n);return e(encodeURI(r).split(/%(?:u[0-9A-F]{2})?[0-9A-F]{2}|./).length-1)},P=function(n,e,r="root",o,s,p,C){let l=C??T(),c=Object.keys(e),h=c.filter(t=>g(e[t])!=="object"&&g(e[t])!=="array"),x=c.filter(t=>g(e[t])==="object"),M=c.filter(t=>g(e[t])==="array"),E=b(c.map(t=>`${d}${i(t)};`)),I=b(c.map(t=>`
+                            initialize${a(i(t))}(v) {
+                                this.${d}${i(t)} = v;
                                 return this;
                             }
-                        `)),A=$(d.map(t=>`
-              get${s(r(t))}() {
-                return this.${f}${r(t)};
+                        `)),_=b(c.map(t=>`
+              get${a(i(t))}() {
+                return this.${d}${i(t)};
               }
-              set${s(r(t))}(v COMMA_PLACEHOLDER validator) {
+              set${a(i(t))}(v COMMA_PLACEHOLDER validator) {
                 this.utility.validateRule(
                   this.getNameSpace() COMMA_PLACEHOLDER 
                   '${t}' COMMA_PLACEHOLDER 
@@ -16,16 +16,16 @@ var f="#",T="Transmute",N="",F="_";var m=n=>typeof n=="object"&&n!=null&&"getMet
                   this COMMA_PLACEHOLDER
                   this.getRoot()
                 );
-                this.${f}${r(t)} = v;
+                this.${d}${i(t)} = v;
                 return this;
               }
-            `)),w=$(d.map(t=>{let c=g(e[t]);return`
-              get${s(r(t))}() {
-                return this.${f}${r(t)};
+            `)),j=b(c.map(t=>{let u=g(e[t]);return`
+              get${a(i(t))}() {
+                return this.${d}${i(t)};
               }
-              set${s(r(t))}(v COMMA_PLACEHOLDER validator) {
+              set${a(i(t))}(v COMMA_PLACEHOLDER validator) {
                 const typeOfValue = this.utility.getTypeOfObject(v);
-                if (typeOfValue === '${c}') {
+                if (typeOfValue === '${u}') {
                     this.utility.validateRule(
                       this.getNameSpace() COMMA_PLACEHOLDER 
                       '${t}' COMMA_PLACEHOLDER 
@@ -34,24 +34,24 @@ var f="#",T="Transmute",N="",F="_";var m=n=>typeof n=="object"&&n!=null&&"getMet
                       this COMMA_PLACEHOLDER
                       this.getRoot()
                     );
-                    this.${f}${r(t)} = v;
+                    this.${d}${i(t)} = v;
                     return this;
                 }
-                throw 'Type mismatch: argument of type ${c} expected but got ' + typeOfValue + ' instead';
+                throw 'Type mismatch: argument of type ${u} expected but got ' + typeOfValue + ' instead';
               }
-            `})),v=$(E.map(t=>`
-              get${s(r(t))}At(i) {
+            `})),y=b(M.map(t=>`
+              get${a(i(t))}At(i) {
                 if (i != null) {
-                    if (i >= 0 && i < this.${f}${r(t)}.length) {
-                        return this.${f}${r(t)}[i];
+                    if (i >= 0 && i < this.${d}${i(t)}.length) {
+                        return this.${d}${i(t)}[i];
                     }
                     throw 'Index out of bound!';
                 }
                 throw 'Index should be of type number';
               }
-              set${s(r(t))}At(i COMMA_PLACEHOLDER v COMMA_PLACEHOLDER validator) {
-                if (Array.isArray(this.${f}${r(t)}) && i != null) {
-                    if (i >= 0 && i < this.${f}${r(t)}.length) {
+              set${a(i(t))}At(i COMMA_PLACEHOLDER v COMMA_PLACEHOLDER validator) {
+                if (Array.isArray(this.${d}${i(t)}) && i != null) {
+                    if (i >= 0 && i < this.${d}${i(t)}.length) {
                         this.utility.validateRule(
                           this.getNameSpace() COMMA_PLACEHOLDER 
                           '${t}' COMMA_PLACEHOLDER 
@@ -61,16 +61,16 @@ var f="#",T="Transmute",N="",F="_";var m=n=>typeof n=="object"&&n!=null&&"getMet
                           this.getRoot() COMMA_PLACEHOLDER
                           i
                         );
-                        this.${f}${r(t)}[i] = v;
+                        this.${d}${i(t)}[i] = v;
                         return this;
                     }
                     throw 'Index out of bound!';
                 }
                 throw 'Index should be of type number';
               }
-            `)),C=$(E.map(t=>`
-              get${s(r(t))}At(i) {
-                const value = this.${f}${r(t)};
+            `)),w=b(M.map(t=>`
+              get${a(i(t))}At(i) {
+                const value = this.${d}${i(t)};
                 if (this.utility.getTypeOfObject(i) === 'number') {
                     if (i >= 0 && i < value.length) {
                         return value[i];
@@ -79,8 +79,8 @@ var f="#",T="Transmute",N="",F="_";var m=n=>typeof n=="object"&&n!=null&&"getMet
                 }
                 throw 'Index should be of type number';
               }
-              set${s(r(t))}At(i COMMA_PLACEHOLDER v COMMA_PLACEHOLDER validator) {
-                const value = this.${f}${r(t)};
+              set${a(i(t))}At(i COMMA_PLACEHOLDER v COMMA_PLACEHOLDER validator) {
+                const value = this.${d}${i(t)};
                 if (this.utility.getTypeOfObject(i) === 'number') {
                     if (i >= 0 && i < value.length) {
                         this.utility.validateRule(
@@ -99,10 +99,10 @@ var f="#",T="Transmute",N="",F="_";var m=n=>typeof n=="object"&&n!=null&&"getMet
                 }
                 throw 'Index should be of type number';
               }
-            `)),R=`
-        return class ${s(r(n))} {
-          ${b}
-          #nameSpace = ${o.trim().length>0?`'${o.trim()}'`:"undefined"};
+            `)),F=`
+        return class ${a(i(n))} {
+          ${E}
+          #nameSpace = ${r.trim().length>0?`'${r.trim()}'`:"undefined"};
           #root = undefined;
           #parent = undefined;
           #index = undefined;
@@ -135,10 +135,10 @@ var f="#",T="Transmute",N="",F="_";var m=n=>typeof n=="object"&&n!=null&&"getMet
             return this.#index;
           }
 
-          ${O}
+          ${I}
 
-          ${p.validateInput?w:A}
-          ${p.validateInput?C:v}
+          ${l.validateInput?j:_}
+          ${l.validateInput?w:y}
         }
-      `,I=new Function("",R)();I.prototype!=null&&(I.prototype.toJson=function(){return m(this)?L(this,this.getMetaInfo()):{}},p.cloneable&&(I.prototype.clone=function(){return z(this.toJson())}),I.prototype.getMetaInfo=function(){let t={};return l.length>0&&(t={...t,primitiveKeys:l.toString()}),h.length>0&&(t={...t,objectKeys:h.toString()}),E.length>0&&(t={...t,arrayKeys:E.toString()}),t},I.prototype.utility={getTypeOfObject:g,validateRule:V});let u=new I,_=i||u,j=a||u;return u.setInternalReferences(_,j,M),l.forEach(t=>{let c=`initialize${s(r(t))}`;c in u&&typeof u[c]=="function"&&u[c](e[t])}),h.forEach(t=>{let c=`initialize${s(r(t))}`;if(c in u&&typeof u[c]=="function"){let x=S(s(r(t)),e[t],o.trim().length>0?`${o}_${t}`:t,_,u);u[c](x)}}),E.forEach(t=>{let c=`initialize${s(r(t))}`;if(c in u&&typeof u[c]=="function"){let x=e[t];if(Array.isArray(x)){x.some(y=>g(y)==="object")&&u[c]([]);let H=x.map((y,P)=>{if(g(y)==="object")return S(s(r(`${t}${P}`)),y,o.trim().length>0?`${o}_${t}`:t,_,u,P);if(g(y)==="array")throw"Multidimensional array not supported. Yet!";return y});u[c](H)}}}),u};function z(n,e,o){if(g(n)!=="object")throw"Expecting a JavaScript Object notation!";e!=null&&B(e);let i=S(s(r(o??`${T}${K()}`)),n);return i.setInternalReferences(i,i,void 0),i}var L=function(n,e){let o={};return e.primitiveKeys!=null&&e.primitiveKeys.length>0&&e.primitiveKeys.split(",").forEach(i=>{let a=`get${s(r(i))}`;D(n,a)&&(o={...o,[i]:n[a]()})}),e.objectKeys!=null&&e.objectKeys.length>0&&e.objectKeys.split(",").forEach(i=>{let a=`get${s(r(i))}`;if(D(n,a)){let M=n[a]();m(M)&&(o={...o,[i]:L(M,M.getMetaInfo())})}}),e.arrayKeys!=null&&e.arrayKeys.length>0&&e.arrayKeys.split(",").forEach(i=>{let a=`get${s(r(i))}`;if(D(n,a)){let d=n[a]().map(l=>{let h=g(l);return h==="array"?[]:h==="object"&&m(l)?L(l,l.getMetaInfo()):l});o={...o,[i]:d}}}),o};function X(n){if(Array.isArray(n)&&n.length>0)return n.map(e=>{if(m(e))return L(e,e.getMetaInfo());throw"Meta info is missing in the object!"});if(g(n)==="object"){if(m(n))return L(n,n.getMetaInfo());throw"Meta info is missing in the object!"}throw"Transmuted object or an array of transmuted object(s) expected!"}export{U as memorySizeOf,z as transmute,X as unTransmute};
+      `,$=new Function("",F)();$.prototype!=null&&($.prototype.toJson=function(){return R(this)?m(this,this.getMetaInfo()):{}},l.cloneable&&($.prototype.clone=function(){return J(this.toJson(),l)}),$.prototype.getMetaInfo=function(){let t={};return h.length>0&&(t={...t,primitiveKeys:h.toString()}),x.length>0&&(t={...t,objectKeys:x.toString()}),M.length>0&&(t={...t,arrayKeys:M.toString()}),t},$.prototype.utility={getTypeOfObject:g,validateRule:(t,u,A,D,O,L,H)=>G(l,t,u,A,D,O,L,H)});let f=new $,v=o||f,N=s||f;return f.setInternalReferences(v,N,p),h.forEach(t=>{let u=`initialize${a(i(t))}`;u in f&&typeof f[u]=="function"&&f[u](e[t])}),x.forEach(t=>{let u=`initialize${a(i(t))}`;if(u in f&&typeof f[u]=="function"){let A=P(a(i(t)),e[t],r.trim().length>0?`${r}_${t}`:t,v,f,void 0,l);f[u](A)}}),M.forEach(t=>{let u=`initialize${a(i(t))}`;if(u in f&&typeof f[u]=="function"){let A=e[t];if(Array.isArray(A)){A.some(O=>g(O)==="object")&&f[u]([]);let D=A.map((O,L)=>{if(g(O)==="object")return P(a(i(`${t}${L}`)),O,r.trim().length>0?`${r}_${t}`:t,v,f,L,l);if(g(O)==="array")throw"Multidimensional array not supported. Yet!";return O});f[u](D)}}}),f};function J(n,e,r){if(g(n)!=="object")throw"Expecting a JavaScript Object notation!";let o=T(e),s=P(a(i(r??`${V}${B()}`)),n,"root",void 0,void 0,void 0,o);return s.setInternalReferences(s,s,void 0),s}var m=function(n,e){let r={};return e.primitiveKeys!=null&&e.primitiveKeys.length>0&&e.primitiveKeys.split(",").forEach(o=>{let s=`get${a(i(o))}`;S(n,s)&&(r={...r,[o]:n[s]()})}),e.objectKeys!=null&&e.objectKeys.length>0&&e.objectKeys.split(",").forEach(o=>{let s=`get${a(i(o))}`;if(S(n,s)){let p=n[s]();R(p)&&(r={...r,[o]:m(p,p.getMetaInfo())})}}),e.arrayKeys!=null&&e.arrayKeys.length>0&&e.arrayKeys.split(",").forEach(o=>{let s=`get${a(i(o))}`;if(S(n,s)){let C=n[s]().map(l=>{let c=g(l);return c==="array"?[]:c==="object"&&R(l)?m(l,l.getMetaInfo()):l});r={...r,[o]:C}}}),r};function k(n){if(Array.isArray(n)&&n.length>0)return n.map(e=>{if(R(e))return m(e,e.getMetaInfo());throw"Meta info is missing in the object!"});if(g(n)==="object"){if(R(n))return m(n,n.getMetaInfo());throw"Meta info is missing in the object!"}throw"Transmuted object or an array of transmuted object(s) expected!"}export{X as memorySizeOf,J as transmute,k as unTransmute};
 //# sourceMappingURL=index.mjs.map

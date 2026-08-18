@@ -1,11 +1,11 @@
-"use strict";var lib;(lib||={}).api=(()=>{var D=Object.defineProperty;var F=Object.getOwnPropertyDescriptor;var K=Object.getOwnPropertyNames;var V=Object.prototype.hasOwnProperty;var B=(n,e)=>{for(var o in e)D(n,o,{get:e[o],enumerable:!0})},z=(n,e,o,i)=>{if(e&&typeof e=="object"||typeof e=="function")for(let s of K(e))!V.call(n,s)&&s!==o&&D(n,s,{get:()=>e[s],enumerable:!(i=F(e,s))||i.enumerable});return n};var G=n=>z(D({},"__esModule",{value:!0}),n);var k={};B(k,{memorySizeOf:()=>Q,transmute:()=>H,unTransmute:()=>Z});var f="#",J="Transmute",U="",X="_";var m=n=>typeof n=="object"&&n!=null&&"getMetaInfo"in n,S=(n,e)=>typeof n=="object"&&n!=null&&e in n,W=function(n=9,e=2){return Math.random().toFixed(n).substring(e)},g=function(n){let e=Object.prototype.toString.call(n);return e.substring(1,e.length-1).split(/\s/)[1].toLowerCase()},Y=function(n,e,o,i,s,M,d){if(p.rules!=null){let l=n!=null&&n.trim().length>0?`${n}.${e}`:void 0,h=e,E=n==="root"?e:l??e;l!=null&&p.rules[l]!=null?(i=i??p.rules[l],h=l):p.rules&&p.rules[e]!=null&&(i=i??p.rules[e],h=e);let b=(O,A)=>{if(i!=null){let w=A??d??s?.getIndex?.(),C=i(O,{key:e,path:E,value:O,parentObject:s,rootObject:M,index:w,getParent:()=>s,getRoot:()=>M});if(C!==!0){if(typeof C=="string"){let R=A??d??s?.getIndex?.();throw R!=null?new Error(`Validation error at index ${R} [${h}]: ${C}`):new Error(`Validation error [${h}]: ${C}`)}throw new Error(`Validation failed for property ${h} with value ${O}`)}}};if(i!=null&&g(i)==="function"&&o!=null){if(Array.isArray(o)){o.forEach((O,A)=>b(O,A));return}b(o)}}},r=function(n){return isNaN(Number(n[0]))||(n="_"+n),n.toString().replace(/-/g,X).replace(/\s|\./g,U)},a=function(n){return n[0].toUpperCase()+n.slice(1)},$=function(n,e=",",o=",",i=" COMMA_PLACEHOLDER"){return n.join(e).replaceAll(o,"").replaceAll(i,",")},p={validateInput:!1,cloneable:!0,rules:{}},q=function(n){p={...p,...n}},Q=function(n){let e=function(i){return i<1024?i+" bytes":i<Math.pow(1024,2)?(i/1024).toFixed(6)+" KiB":i<Math.pow(1024,3)?(i/Math.pow(1024,2)).toFixed(6)+" MiB":(i/Math.pow(1024,3)).toFixed(6)+" GiB"},o=JSON.stringify(n);return e(encodeURI(o).split(/%(?:u[0-9A-F]{2})?[0-9A-F]{2}|./).length-1)},v=function(n,e,o="root",i,s,M){let d=Object.keys(e),l=d.filter(t=>g(e[t])!=="object"&&g(e[t])!=="array"),h=d.filter(t=>g(e[t])==="object"),E=d.filter(t=>g(e[t])==="array"),b=$(d.map(t=>`${f}${r(t)};`)),O=$(d.map(t=>`
+"use strict";var lib;(lib||={}).api=(()=>{var S=Object.defineProperty;var z=Object.getOwnPropertyDescriptor;var B=Object.getOwnPropertyNames;var G=Object.prototype.hasOwnProperty;var J=(n,e)=>{for(var i in e)S(n,i,{get:e[i],enumerable:!0})},U=(n,e,i,s)=>{if(e&&typeof e=="object"||typeof e=="function")for(let o of B(e))!G.call(n,o)&&o!==i&&S(n,o,{get:()=>e[o],enumerable:!(s=z(e,o))||s.enumerable});return n};var X=n=>U(S({},"__esModule",{value:!0}),n);var nt={};J(nt,{memorySizeOf:()=>Z,transmute:()=>N,unTransmute:()=>tt});var d="#",k="Transmute",W="",Y="_";var R=n=>typeof n=="object"&&n!=null&&"getMetaInfo"in n,P=(n,e)=>typeof n=="object"&&n!=null&&e in n,q=function(n=9,e=2){return Math.random().toFixed(n).substring(e)},g=function(n){let e=Object.prototype.toString.call(n);return e.substring(1,e.length-1).split(/\s/)[1].toLowerCase()},Q=function(n,e,i,s,o,p,C,l){if(n.rules!=null){let c=e!=null&&e.trim().length>0?`${e}.${i}`:void 0,h=i,x=e==="root"?i:c??i;c!=null&&n.rules[c]!=null?(o=o??n.rules[c],h=c):n.rules[i]!=null&&(o=o??n.rules[i],h=i);let M=(E,I)=>{if(o!=null){let _=I??l??p?.getIndex?.(),y=o(E,{key:i,path:x,value:E,parentObject:p,rootObject:C,index:_,getParent:()=>p,getRoot:()=>C});if(y!==!0){if(typeof y=="string"){let w=I??l??p?.getIndex?.();throw w!=null?new Error(`Validation error at index ${w} [${h}]: ${y}`):new Error(`Validation error [${h}]: ${y}`)}throw new Error(`Validation failed for property ${h} with value ${E}`)}}};if(o!=null&&g(o)==="function"&&s!=null){if(Array.isArray(s)){s.forEach((E,I)=>M(E,I));return}M(s)}}},r=function(n){return isNaN(Number(n[0]))||(n="_"+n),n.toString().replace(/-/g,Y).replace(/\s|\./g,W)},a=function(n){return n[0].toUpperCase()+n.slice(1)},b=function(n,e=",",i=",",s=" COMMA_PLACEHOLDER"){return n.join(e).replaceAll(i,"").replaceAll(s,",")},F=function(n){return{validateInput:n?.validateInput??!1,cloneable:n?.cloneable??!0,rules:{...n?.rules??{}}}},Z=function(n){let e=function(s){return s<1024?s+" bytes":s<Math.pow(1024,2)?(s/1024).toFixed(6)+" KiB":s<Math.pow(1024,3)?(s/Math.pow(1024,2)).toFixed(6)+" MiB":(s/Math.pow(1024,3)).toFixed(6)+" GiB"},i=JSON.stringify(n);return e(encodeURI(i).split(/%(?:u[0-9A-F]{2})?[0-9A-F]{2}|./).length-1)},j=function(n,e,i="root",s,o,p,C){let l=C??F(),c=Object.keys(e),h=c.filter(t=>g(e[t])!=="object"&&g(e[t])!=="array"),x=c.filter(t=>g(e[t])==="object"),M=c.filter(t=>g(e[t])==="array"),E=b(c.map(t=>`${d}${r(t)};`)),I=b(c.map(t=>`
                             initialize${a(r(t))}(v) {
-                                this.${f}${r(t)} = v;
+                                this.${d}${r(t)} = v;
                                 return this;
                             }
-                        `)),A=$(d.map(t=>`
+                        `)),_=b(c.map(t=>`
               get${a(r(t))}() {
-                return this.${f}${r(t)};
+                return this.${d}${r(t)};
               }
               set${a(r(t))}(v COMMA_PLACEHOLDER validator) {
                 this.utility.validateRule(
@@ -16,16 +16,16 @@
                   this COMMA_PLACEHOLDER
                   this.getRoot()
                 );
-                this.${f}${r(t)} = v;
+                this.${d}${r(t)} = v;
                 return this;
               }
-            `)),w=$(d.map(t=>{let c=g(e[t]);return`
+            `)),H=b(c.map(t=>{let u=g(e[t]);return`
               get${a(r(t))}() {
-                return this.${f}${r(t)};
+                return this.${d}${r(t)};
               }
               set${a(r(t))}(v COMMA_PLACEHOLDER validator) {
                 const typeOfValue = this.utility.getTypeOfObject(v);
-                if (typeOfValue === '${c}') {
+                if (typeOfValue === '${u}') {
                     this.utility.validateRule(
                       this.getNameSpace() COMMA_PLACEHOLDER 
                       '${t}' COMMA_PLACEHOLDER 
@@ -34,24 +34,24 @@
                       this COMMA_PLACEHOLDER
                       this.getRoot()
                     );
-                    this.${f}${r(t)} = v;
+                    this.${d}${r(t)} = v;
                     return this;
                 }
-                throw 'Type mismatch: argument of type ${c} expected but got ' + typeOfValue + ' instead';
+                throw 'Type mismatch: argument of type ${u} expected but got ' + typeOfValue + ' instead';
               }
-            `})),P=$(E.map(t=>`
+            `})),y=b(M.map(t=>`
               get${a(r(t))}At(i) {
                 if (i != null) {
-                    if (i >= 0 && i < this.${f}${r(t)}.length) {
-                        return this.${f}${r(t)}[i];
+                    if (i >= 0 && i < this.${d}${r(t)}.length) {
+                        return this.${d}${r(t)}[i];
                     }
                     throw 'Index out of bound!';
                 }
                 throw 'Index should be of type number';
               }
               set${a(r(t))}At(i COMMA_PLACEHOLDER v COMMA_PLACEHOLDER validator) {
-                if (Array.isArray(this.${f}${r(t)}) && i != null) {
-                    if (i >= 0 && i < this.${f}${r(t)}.length) {
+                if (Array.isArray(this.${d}${r(t)}) && i != null) {
+                    if (i >= 0 && i < this.${d}${r(t)}.length) {
                         this.utility.validateRule(
                           this.getNameSpace() COMMA_PLACEHOLDER 
                           '${t}' COMMA_PLACEHOLDER 
@@ -61,16 +61,16 @@
                           this.getRoot() COMMA_PLACEHOLDER
                           i
                         );
-                        this.${f}${r(t)}[i] = v;
+                        this.${d}${r(t)}[i] = v;
                         return this;
                     }
                     throw 'Index out of bound!';
                 }
                 throw 'Index should be of type number';
               }
-            `)),C=$(E.map(t=>`
+            `)),w=b(M.map(t=>`
               get${a(r(t))}At(i) {
-                const value = this.${f}${r(t)};
+                const value = this.${d}${r(t)};
                 if (this.utility.getTypeOfObject(i) === 'number') {
                     if (i >= 0 && i < value.length) {
                         return value[i];
@@ -80,7 +80,7 @@
                 throw 'Index should be of type number';
               }
               set${a(r(t))}At(i COMMA_PLACEHOLDER v COMMA_PLACEHOLDER validator) {
-                const value = this.${f}${r(t)};
+                const value = this.${d}${r(t)};
                 if (this.utility.getTypeOfObject(i) === 'number') {
                     if (i >= 0 && i < value.length) {
                         this.utility.validateRule(
@@ -99,10 +99,10 @@
                 }
                 throw 'Index should be of type number';
               }
-            `)),R=`
+            `)),V=`
         return class ${a(r(n))} {
-          ${b}
-          #nameSpace = ${o.trim().length>0?`'${o.trim()}'`:"undefined"};
+          ${E}
+          #nameSpace = ${i.trim().length>0?`'${i.trim()}'`:"undefined"};
           #root = undefined;
           #parent = undefined;
           #index = undefined;
@@ -135,10 +135,10 @@
             return this.#index;
           }
 
-          ${O}
+          ${I}
 
-          ${p.validateInput?w:A}
-          ${p.validateInput?C:P}
+          ${l.validateInput?H:_}
+          ${l.validateInput?w:y}
         }
-      `,I=new Function("",R)();I.prototype!=null&&(I.prototype.toJson=function(){return m(this)?L(this,this.getMetaInfo()):{}},p.cloneable&&(I.prototype.clone=function(){return H(this.toJson())}),I.prototype.getMetaInfo=function(){let t={};return l.length>0&&(t={...t,primitiveKeys:l.toString()}),h.length>0&&(t={...t,objectKeys:h.toString()}),E.length>0&&(t={...t,arrayKeys:E.toString()}),t},I.prototype.utility={getTypeOfObject:g,validateRule:Y});let u=new I,_=i||u,T=s||u;return u.setInternalReferences(_,T,M),l.forEach(t=>{let c=`initialize${a(r(t))}`;c in u&&typeof u[c]=="function"&&u[c](e[t])}),h.forEach(t=>{let c=`initialize${a(r(t))}`;if(c in u&&typeof u[c]=="function"){let x=v(a(r(t)),e[t],o.trim().length>0?`${o}_${t}`:t,_,u);u[c](x)}}),E.forEach(t=>{let c=`initialize${a(r(t))}`;if(c in u&&typeof u[c]=="function"){let x=e[t];if(Array.isArray(x)){x.some(y=>g(y)==="object")&&u[c]([]);let N=x.map((y,j)=>{if(g(y)==="object")return v(a(r(`${t}${j}`)),y,o.trim().length>0?`${o}_${t}`:t,_,u,j);if(g(y)==="array")throw"Multidimensional array not supported. Yet!";return y});u[c](N)}}}),u};function H(n,e,o){if(g(n)!=="object")throw"Expecting a JavaScript Object notation!";e!=null&&q(e);let i=v(a(r(o??`${J}${W()}`)),n);return i.setInternalReferences(i,i,void 0),i}var L=function(n,e){let o={};return e.primitiveKeys!=null&&e.primitiveKeys.length>0&&e.primitiveKeys.split(",").forEach(i=>{let s=`get${a(r(i))}`;S(n,s)&&(o={...o,[i]:n[s]()})}),e.objectKeys!=null&&e.objectKeys.length>0&&e.objectKeys.split(",").forEach(i=>{let s=`get${a(r(i))}`;if(S(n,s)){let M=n[s]();m(M)&&(o={...o,[i]:L(M,M.getMetaInfo())})}}),e.arrayKeys!=null&&e.arrayKeys.length>0&&e.arrayKeys.split(",").forEach(i=>{let s=`get${a(r(i))}`;if(S(n,s)){let d=n[s]().map(l=>{let h=g(l);return h==="array"?[]:h==="object"&&m(l)?L(l,l.getMetaInfo()):l});o={...o,[i]:d}}}),o};function Z(n){if(Array.isArray(n)&&n.length>0)return n.map(e=>{if(m(e))return L(e,e.getMetaInfo());throw"Meta info is missing in the object!"});if(g(n)==="object"){if(m(n))return L(n,n.getMetaInfo());throw"Meta info is missing in the object!"}throw"Transmuted object or an array of transmuted object(s) expected!"}return G(k);})();
+      `,$=new Function("",V)();$.prototype!=null&&($.prototype.toJson=function(){return R(this)?m(this,this.getMetaInfo()):{}},l.cloneable&&($.prototype.clone=function(){return N(this.toJson(),l)}),$.prototype.getMetaInfo=function(){let t={};return h.length>0&&(t={...t,primitiveKeys:h.toString()}),x.length>0&&(t={...t,objectKeys:x.toString()}),M.length>0&&(t={...t,arrayKeys:M.toString()}),t},$.prototype.utility={getTypeOfObject:g,validateRule:(t,u,A,D,O,L,T)=>Q(l,t,u,A,D,O,L,T)});let f=new $,v=s||f,K=o||f;return f.setInternalReferences(v,K,p),h.forEach(t=>{let u=`initialize${a(r(t))}`;u in f&&typeof f[u]=="function"&&f[u](e[t])}),x.forEach(t=>{let u=`initialize${a(r(t))}`;if(u in f&&typeof f[u]=="function"){let A=j(a(r(t)),e[t],i.trim().length>0?`${i}_${t}`:t,v,f,void 0,l);f[u](A)}}),M.forEach(t=>{let u=`initialize${a(r(t))}`;if(u in f&&typeof f[u]=="function"){let A=e[t];if(Array.isArray(A)){A.some(O=>g(O)==="object")&&f[u]([]);let D=A.map((O,L)=>{if(g(O)==="object")return j(a(r(`${t}${L}`)),O,i.trim().length>0?`${i}_${t}`:t,v,f,L,l);if(g(O)==="array")throw"Multidimensional array not supported. Yet!";return O});f[u](D)}}}),f};function N(n,e,i){if(g(n)!=="object")throw"Expecting a JavaScript Object notation!";let s=F(e),o=j(a(r(i??`${k}${q()}`)),n,"root",void 0,void 0,void 0,s);return o.setInternalReferences(o,o,void 0),o}var m=function(n,e){let i={};return e.primitiveKeys!=null&&e.primitiveKeys.length>0&&e.primitiveKeys.split(",").forEach(s=>{let o=`get${a(r(s))}`;P(n,o)&&(i={...i,[s]:n[o]()})}),e.objectKeys!=null&&e.objectKeys.length>0&&e.objectKeys.split(",").forEach(s=>{let o=`get${a(r(s))}`;if(P(n,o)){let p=n[o]();R(p)&&(i={...i,[s]:m(p,p.getMetaInfo())})}}),e.arrayKeys!=null&&e.arrayKeys.length>0&&e.arrayKeys.split(",").forEach(s=>{let o=`get${a(r(s))}`;if(P(n,o)){let C=n[o]().map(l=>{let c=g(l);return c==="array"?[]:c==="object"&&R(l)?m(l,l.getMetaInfo()):l});i={...i,[s]:C}}}),i};function tt(n){if(Array.isArray(n)&&n.length>0)return n.map(e=>{if(R(e))return m(e,e.getMetaInfo());throw"Meta info is missing in the object!"});if(g(n)==="object"){if(R(n))return m(n,n.getMetaInfo());throw"Meta info is missing in the object!"}throw"Transmuted object or an array of transmuted object(s) expected!"}return X(nt);})();
 //# sourceMappingURL=index.global.js.map
