@@ -51,6 +51,10 @@ export type Config = {
     rules?: Record<string, ValidatorFn>;
 };
 
+export type UpdateRulesOptions = {
+    mergeRules?: boolean;
+};
+
 type ModelConfig = Required<Config>;
 
 type ValidateRuleFn = (
@@ -65,6 +69,7 @@ type ValidateRuleFn = (
 
 type DynamicClassInstance = IStringIndex & {
     setInternalReferences: (root: unknown, parent: unknown, index?: number) => unknown;
+    updateRules: (rules: Record<string, ValidatorFn>, options?: UpdateRulesOptions) => DynamicClassInstance;
     toJson: () => IStringIndex;
     clone: () => IStringIndex;
     getMetaInfo: () => MetaInfo;
@@ -75,7 +80,7 @@ type DynamicClassInstance = IStringIndex & {
 };
 
 type DynamicClassConstructor = {
-    new (): DynamicClassInstance;
+    new (modelConfig: ModelConfig): DynamicClassInstance;
     prototype: IStringIndex;
 };
 
@@ -344,12 +349,15 @@ const generateDynamicClassInstance = function (
     const dynamicClassDefinition = `
         return class ${capitalize(normalize(className))} {
           ${privateProperties}
+          #modelConfig;
           #nameSpace = ${nameSpace.trim().length > 0 ? `'${nameSpace.trim()}'` : 'undefined'};
           #root = undefined;
           #parent = undefined;
           #index = undefined;
 
-          constructor() {}
+          constructor(modelConfig) {
+                this.#modelConfig = modelConfig;
+        }
 
           getNameSpace() {
             if (this.#nameSpace != null) {
@@ -376,6 +384,12 @@ const generateDynamicClassInstance = function (
           getIndex() {
             return this.#index;
           }
+
+          updateRules(rules, options = {}) {
+            const nextRules = options.mergeRules ? { ...this.#modelConfig.rules, ...rules } : { ...rules };
+            this.#modelConfig.rules = nextRules;
+            return this.getRoot();
+         }
 
           ${initializationMethods}
 
@@ -435,7 +449,7 @@ const generateDynamicClassInstance = function (
         };
     }
 
-    const instance = new dynamicClass();
+    const instance = new dynamicClass(configForModel);
 
     // Store navigation metadata on every generated instance. The root reference
     // enables access to the full object graph, the parent reference enables
