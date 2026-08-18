@@ -45,4 +45,68 @@ describe('Configuration and model state', () => {
         expect(first.toJson()).toEqual({ name: 'First' });
         expect(first.clone).toBeDefined();
     });
+
+    test('keeps validation rules isolated between models', () => {
+        const first = transmute(
+            { age: 30 },
+            {
+                validateInput: true,
+                rules: {
+                    age: (value) => value >= 18 || 'First model rule'
+                }
+            }
+        );
+        const second = transmute(
+            { age: 10 },
+            {
+                validateInput: true,
+                rules: {
+                    age: (value) => value >= 5 || 'Second model rule'
+                }
+            }
+        );
+
+        expect(() => first.setAge(10)).toThrowError('First model rule');
+        expect(() => second.setAge(6)).not.toThrow();
+    });
+
+    test('does not inherit rules when a later model omits them', () => {
+        transmute(
+            { age: 30 },
+            {
+                validateInput: true,
+                rules: {
+                    age: (value) => value >= 18 || 'Previous model rule'
+                }
+            }
+        );
+        const second = transmute({ age: 10 }, { validateInput: true });
+
+        expect(() => second.setAge(11)).not.toThrow();
+    });
+
+    test('clones preserve the source model configuration', () => {
+        const user = transmute(
+            { age: 30 },
+            {
+                validateInput: true,
+                rules: {
+                    age: (value) => value >= 18 || 'Original model rule'
+                }
+            }
+        );
+        transmute(
+            { age: 10 },
+            {
+                validateInput: true,
+                rules: {
+                    age: (value) => value >= 5 || 'Later model rule'
+                }
+            }
+        );
+
+        const clone = user.clone();
+
+        expect(() => clone.setAge(10)).toThrowError('Original model rule');
+    });
 });

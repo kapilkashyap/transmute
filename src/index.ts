@@ -1,5 +1,6 @@
 /**
- * Dynamically transform a JSON into a Class with private properties and accessor methods at runtime.
+ * Dynamically transforms JSON objects into runtime models with private properties,
+ * accessor methods, context-aware validation, and per-model configuration.
  * @author: Kapil Kashyap
  */
 
@@ -44,6 +45,24 @@ export type ValidatorContext = {
 
 export type ValidatorFn = (value: unknown, context: ValidatorContext) => boolean | string;
 
+export type Config = {
+    validateInput?: boolean;
+    cloneable?: boolean;
+    rules?: Record<string, ValidatorFn>;
+};
+
+type ModelConfig = Required<Config>;
+
+type ValidateRuleFn = (
+    nameSpace: string | undefined,
+    key: string,
+    value: unknown,
+    validator?: ValidatorFn,
+    parentObject?: unknown,
+    rootObject?: unknown,
+    index?: number
+) => void;
+
 type DynamicClassInstance = IStringIndex & {
     setInternalReferences: (root: unknown, parent: unknown, index?: number) => unknown;
     toJson: () => IStringIndex;
@@ -51,21 +70,13 @@ type DynamicClassInstance = IStringIndex & {
     getMetaInfo: () => MetaInfo;
     utility: {
         getTypeOfObject: typeof getTypeOfObject;
-        validateRule: typeof validateRule;
+        validateRule: ValidateRuleFn;
     };
 };
 
 type DynamicClassConstructor = {
     new (): DynamicClassInstance;
     prototype: IStringIndex;
-};
-
-export type Config = {
-    validateInput?: boolean;
-    cloneable?: boolean;
-    rules?: {
-        [key: string]: ValidatorFn;
-    };
 };
 
 /*** UTILITY ***/
@@ -85,6 +96,7 @@ const getTypeOfObject = function (o: unknown) {
 
 /* Validate rule for a property */
 const validateRule = function (
+    modelConfig: ModelConfig,
     nameSpace: string | undefined,
     key: string,
     value: unknown,
@@ -93,16 +105,16 @@ const validateRule = function (
     rootObject?: unknown,
     index?: number
 ) {
-    if (config.rules != null) {
+    if (modelConfig.rules != null) {
         const nsKey = nameSpace != null && nameSpace.trim().length > 0 ? `${nameSpace}.${key}` : undefined;
 
         let usedKey = key;
         const contextPath = nameSpace === 'root' ? key : (nsKey ?? key);
-        if (nsKey != null && config.rules[nsKey] != null) {
-            validator = validator ?? config.rules[nsKey];
+        if (nsKey != null && modelConfig.rules[nsKey] != null) {
+            validator = validator ?? modelConfig.rules[nsKey];
             usedKey = nsKey;
-        } else if (config.rules && config.rules[key] != null) {
-            validator = validator ?? config.rules[key];
+        } else if (modelConfig.rules[key] != null) {
+            validator = validator ?? modelConfig.rules[key];
             usedKey = key;
         }
 
@@ -161,17 +173,11 @@ const generateStringFromArray = function (s: string[], joiner = ',', separator =
     return s.join(joiner).replaceAll(separator, '').replaceAll(placeholder, ',');
 };
 
-// default configuration
-let config: Config = {
-    validateInput: false,
-    cloneable: true,
-    rules: {}
-};
-
-const setConfig = function (cfg: Config) {
-    config = {
-        ...config,
-        ...cfg
+const normalizeConfig = function (cfg?: Config): ModelConfig {
+    return {
+        validateInput: cfg?.validateInput ?? false,
+        cloneable: cfg?.cloneable ?? true,
+        rules: { ...(cfg?.rules ?? {}) }
     };
 };
 
@@ -194,8 +200,10 @@ const generateDynamicClassInstance = function (
     nameSpace = 'root',
     root?: unknown,
     parent?: unknown,
-    index?: number
+    index?: number,
+    modelConfig?: ModelConfig
 ) {
+    const configForModel = modelConfig ?? normalizeConfig();
     const keys = Object.keys(o);
     const primitiveKeys = keys.filter((key) => getTypeOfObject(o[key]) !== 'object' && getTypeOfObject(o[key]) !== 'array');
     const objectKeys = keys.filter((key) => getTypeOfObject(o[key]) === 'object');
@@ -371,8 +379,8 @@ const generateDynamicClassInstance = function (
 
           ${initializationMethods}
 
-          ${config.validateInput ? accessorMethodsWithValidation : accessorMethods}
-          ${config.validateInput ? indexedAccessorMethodsWithValidation : indexedAccessorMethods}
+          ${configForModel.validateInput ? accessorMethodsWithValidation : accessorMethods}
+          ${configForModel.validateInput ? indexedAccessorMethodsWithValidation : indexedAccessorMethods}
         }
       `;
 
@@ -391,10 +399,10 @@ const generateDynamicClassInstance = function (
         };
 
         // Config driven
-        if (config.cloneable) {
+        if (configForModel.cloneable) {
             // Create a clone of the transmuted object
             dynamicClass.prototype.clone = function (this: DynamicClassInstance) {
-                return transmute(this.toJson());
+                return transmute(this.toJson(), configForModel);
             };
         }
 
@@ -415,7 +423,15 @@ const generateDynamicClassInstance = function (
         // Utility to check the type
         dynamicClass.prototype.utility = {
             getTypeOfObject,
-            validateRule
+            validateRule: (
+                nameSpace: string | undefined,
+                key: string,
+                value: unknown,
+                validator?: ValidatorFn,
+                parentObject?: unknown,
+                rootObject?: unknown,
+                index?: number
+            ) => validateRule(configForModel, nameSpace, key, value, validator, parentObject, rootObject, index)
         };
     }
 
@@ -448,7 +464,9 @@ const generateDynamicClassInstance = function (
                 o[key] as IStringIndex,
                 nameSpace.trim().length > 0 ? `${nameSpace}_${key}` : key,
                 rootObj,
-                instance
+                instance,
+                undefined,
+                configForModel
             );
             instance[initializeAccessorMethod](nestedInstance);
         }
@@ -472,7 +490,8 @@ const generateDynamicClassInstance = function (
                             nameSpace.trim().length > 0 ? `${nameSpace}_${key}` : key,
                             rootObj,
                             instance,
-                            idx
+                            idx,
+                            configForModel
                         );
                         return nestedInstance;
                     }
@@ -493,11 +512,17 @@ export function transmute(o: IStringIndex, config?: Config, className?: string):
     if (getTypeOfObject(o) !== 'object') {
         throw ERRORS.JSON_EXPECTED;
     }
-    if (config != null) {
-        setConfig(config);
-    }
+    const modelConfig = normalizeConfig(config);
     // return the transmuted JSON with private properties and accessor methods
-    const instance = generateDynamicClassInstance(capitalize(normalize(className ?? `${CLASSNAME}${randomNumber()}`)), o);
+    const instance = generateDynamicClassInstance(
+        capitalize(normalize(className ?? `${CLASSNAME}${randomNumber()}`)),
+        o,
+        'root',
+        undefined,
+        undefined,
+        undefined,
+        modelConfig
+    );
     // Keep the root instance as its own root reference so every nested model can
     // access the complete transmuted object graph through ValidatorContext.getRoot().
     instance.setInternalReferences(instance, instance, undefined);
