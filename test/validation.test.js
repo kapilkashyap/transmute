@@ -67,6 +67,49 @@ describe('Validation and error checks', () => {
         expect(() => o.setArrayAt(3)).toThrowError('Index out of bound!');
     });
 
+    test('validateOnCreate runs the current model graph through validation before returning the model', () => {
+        expect(() =>
+            transmute(
+                { number: 15 },
+                {
+                    validateOnCreate: true,
+                    rules: {
+                        number: (value) => value >= 18 || 'Must be an adult'
+                    }
+                }
+            )
+        ).toThrowError('Must be an adult');
+    });
+
+    test('validateInput still applies to future setter mutations, not initial construction', () => {
+        const model = transmute({ number: 15 }, { validateInput: true });
+        expect(() => model.setNumber('bad')).toThrowError('Type mismatch: argument of type number expected but got string instead');
+    });
+
+    test('validate() checks the full model state using the current data and rules', () => {
+        const model = transmute(
+            { number: 25, string: 'ok' },
+            {
+                validateInput: true,
+                rules: {
+                    number: (value) => value >= 18 || 'Must be an adult'
+                }
+            }
+        );
+        expect(() => model.validate()).not.toThrow();
+
+        const invalid = transmute(
+            { number: 15, string: 'ok' },
+            {
+                validateInput: true,
+                rules: {
+                    number: (value) => value >= 18 || 'Must be an adult'
+                }
+            }
+        );
+        expect(() => invalid.validate()).toThrowError('Must be an adult');
+    });
+
     test('Check invalid input passed to transmute', () => {
         expect(() => transmute()).toThrowError('Expecting a JavaScript Object notation!');
         expect(() => transmute(null)).toThrowError('Expecting a JavaScript Object notation!');
