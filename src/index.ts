@@ -47,6 +47,7 @@ export type ValidatorFn = (value: unknown, context: ValidatorContext) => boolean
 
 export type Config = {
     validateInput?: boolean;
+    validateOnCreate?: boolean;
     cloneable?: boolean;
     rules?: Record<string, ValidatorFn>;
 };
@@ -70,6 +71,7 @@ type ValidateRuleFn = (
 type DynamicClassInstance = IStringIndex & {
     setInternalReferences: (root: unknown, parent: unknown, index?: number) => unknown;
     updateRules: (rules: Record<string, ValidatorFn>, options?: UpdateRulesOptions) => DynamicClassInstance;
+    validate: () => DynamicClassInstance;
     toJson: () => IStringIndex;
     clone: () => IStringIndex;
     getMetaInfo: () => MetaInfo;
@@ -181,9 +183,61 @@ const generateStringFromArray = function (s: string[], joiner = ',', separator =
 const normalizeConfig = function (cfg?: Config): ModelConfig {
     return {
         validateInput: cfg?.validateInput ?? false,
+        validateOnCreate: cfg?.validateOnCreate ?? false,
         cloneable: cfg?.cloneable ?? true,
         rules: { ...(cfg?.rules ?? {}) }
     };
+};
+
+const validateObjectGraph = function (instance: DynamicClassInstance): DynamicClassInstance {
+    const metaInfo = instance.getMetaInfo();
+    const keys = [
+        ...(metaInfo.primitiveKeys != null && metaInfo.primitiveKeys.length > 0 ? metaInfo.primitiveKeys.split(',') : []),
+        ...(metaInfo.objectKeys != null && metaInfo.objectKeys.length > 0 ? metaInfo.objectKeys.split(',') : []),
+        ...(metaInfo.arrayKeys != null && metaInfo.arrayKeys.length > 0 ? metaInfo.arrayKeys.split(',') : [])
+    ].filter(Boolean);
+
+    keys.forEach((key) => {
+        const getter = `get${capitalize(normalize(key))}`;
+        if (typeof instance[getter] !== 'function') {
+            return;
+        }
+
+        const typedInstance = instance as DynamicClassInstance & {
+            getNameSpace: () => string;
+            getRoot: () => unknown;
+            utility: {
+                typeMap?: Record<string, string>;
+                getTypeOfObject: typeof getTypeOfObject;
+                validateRule: ValidateRuleFn;
+            };
+        };
+
+        const value = (instance[getter] as GetterFn)();
+        const expectedType = typedInstance.utility.typeMap?.[key] ?? null;
+        const actualType = typedInstance.utility.getTypeOfObject(value);
+
+        if (expectedType != null && actualType !== expectedType) {
+            throw new Error(`Type mismatch: argument of type ${expectedType} expected but got ${actualType} instead`);
+        }
+
+        typedInstance.utility.validateRule(typedInstance.getNameSpace(), key, value, undefined, typedInstance, typedInstance.getRoot());
+
+        if (Array.isArray(value)) {
+            value.forEach((item) => {
+                if (item != null && typeof item === 'object' && hasObjectMetaInfo(item)) {
+                    (item as DynamicClassInstance).validate();
+                }
+            });
+            return;
+        }
+
+        if (value != null && typeof value === 'object' && hasObjectMetaInfo(value)) {
+            (value as DynamicClassInstance).validate();
+        }
+    });
+
+    return instance;
 };
 
 export const memorySizeOf = function (obj: IStringIndex) {
@@ -210,6 +264,7 @@ const generateDynamicClassInstance = function (
 ) {
     const configForModel = modelConfig ?? normalizeConfig();
     const keys = Object.keys(o);
+    const propertyTypes = keys.reduce((acc, key) => ({ ...acc, [key]: getTypeOfObject(o[key]) }), {} as Record<string, string>);
     const primitiveKeys = keys.filter((key) => getTypeOfObject(o[key]) !== 'object' && getTypeOfObject(o[key]) !== 'array');
     const objectKeys = keys.filter((key) => getTypeOfObject(o[key]) === 'object');
     const arrayKeys = keys.filter((key) => getTypeOfObject(o[key]) === 'array');
@@ -420,6 +475,10 @@ const generateDynamicClassInstance = function (
             };
         }
 
+        dynamicClass.prototype.validate = function (this: DynamicClassInstance) {
+            return validateObjectGraph(this);
+        };
+
         // Construct a meta-info of the instance
         dynamicClass.prototype.getMetaInfo = function () {
             let o = {};
@@ -436,6 +495,7 @@ const generateDynamicClassInstance = function (
         };
         // Utility to check the type
         dynamicClass.prototype.utility = {
+            typeMap: propertyTypes,
             getTypeOfObject,
             validateRule: (
                 nameSpace: string | undefined,
@@ -540,6 +600,9 @@ export function transmute(o: IStringIndex, config?: Config, className?: string):
     // Keep the root instance as its own root reference so every nested model can
     // access the complete transmuted object graph through ValidatorContext.getRoot().
     instance.setInternalReferences(instance, instance, undefined);
+    if (modelConfig.validateOnCreate) {
+        instance.validate();
+    }
     return instance;
 }
 
