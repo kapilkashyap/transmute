@@ -208,6 +208,7 @@ const validateObjectGraph = function (instance: DynamicClassInstance): DynamicCl
             getRoot: () => unknown;
             utility: {
                 typeMap?: Record<string, string>;
+                elementTypeMap?: Record<string, string[]>;
                 getTypeOfObject: typeof getTypeOfObject;
                 validateRule: ValidateRuleFn;
             };
@@ -224,7 +225,15 @@ const validateObjectGraph = function (instance: DynamicClassInstance): DynamicCl
         typedInstance.utility.validateRule(typedInstance.getNameSpace(), key, value, undefined, typedInstance, typedInstance.getRoot());
 
         if (Array.isArray(value)) {
-            value.forEach((item) => {
+            const elementTypes = typedInstance.utility.elementTypeMap?.[key];
+            value.forEach((item, itemIndex) => {
+                const expectedElementType = elementTypes?.[itemIndex];
+                const actualElementType = typedInstance.utility.getTypeOfObject(item);
+                if (expectedElementType != null && actualElementType !== expectedElementType) {
+                    throw new Error(
+                        `Type mismatch at index ${itemIndex} [${key}]: argument of type ${expectedElementType} expected but got ${actualElementType} instead`
+                    );
+                }
                 if (item != null && typeof item === 'object' && hasObjectMetaInfo(item)) {
                     (item as DynamicClassInstance).validate();
                 }
@@ -268,6 +277,11 @@ const generateDynamicClassInstance = function (
     const primitiveKeys = keys.filter((key) => getTypeOfObject(o[key]) !== 'object' && getTypeOfObject(o[key]) !== 'array');
     const objectKeys = keys.filter((key) => getTypeOfObject(o[key]) === 'object');
     const arrayKeys = keys.filter((key) => getTypeOfObject(o[key]) === 'array');
+    // Capture each array's original per-index types so validate() can enforce the same contract as indexed setters, even for heterogeneous arrays.
+    const arrayElementTypes = arrayKeys.reduce(
+        (acc, key) => ({ ...acc, [key]: (o[key] as unknown[]).map((v) => getTypeOfObject(v)) }),
+        {} as Record<string, string[]>
+    );
     const privateProperties = generateStringFromArray(keys.map((key) => `${HASH}${normalize(key)};`));
     const initializationMethods = generateStringFromArray(
         keys.map((key) => {
@@ -381,6 +395,12 @@ const generateDynamicClassInstance = function (
                 const value = this.${HASH}${normalize(key)};
                 if (this.utility.getTypeOfObject(i) === 'number') {
                     if (i >= 0 && i < value.length) {
+                        // Compare against the type currently held at this index so heterogeneous arrays keep each slot's own contract.
+                        const expectedType = this.utility.getTypeOfObject(value[i]);
+                        const typeOfValue = this.utility.getTypeOfObject(v);
+                        if (typeOfValue !== expectedType) {
+                            throw 'Type mismatch: argument of type ' + expectedType + ' expected but got ' + typeOfValue + ' instead';
+                        }
                         this.utility.validateRule(
                           this.getNameSpace() COMMA_PLACEHOLDER 
                           '${key}' COMMA_PLACEHOLDER 
@@ -496,6 +516,7 @@ const generateDynamicClassInstance = function (
         // Utility to check the type
         dynamicClass.prototype.utility = {
             typeMap: propertyTypes,
+            elementTypeMap: arrayElementTypes,
             getTypeOfObject,
             validateRule: (
                 nameSpace: string | undefined,

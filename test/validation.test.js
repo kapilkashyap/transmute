@@ -67,6 +67,21 @@ describe('Validation and error checks', () => {
         expect(() => o.setArrayAt(3)).toThrowError('Index out of bound!');
     });
 
+    test('Indexed setter validates against the type currently held at that index, even in heterogeneous arrays', () => {
+        // `array` is `['value-2', 456, true]` - one string, one number, one boolean slot.
+        expect(() => o.setArrayAt(0, 999)).toThrowError('Type mismatch: argument of type string expected but got number instead');
+        expect(() => o.setArrayAt(1, 'not-a-number')).toThrowError(
+            'Type mismatch: argument of type number expected but got string instead'
+        );
+        expect(() => o.setArrayAt(2, 'not-a-boolean')).toThrowError(
+            'Type mismatch: argument of type boolean expected but got string instead'
+        );
+
+        expect(() => o.setArrayAt(0, 'value-2-updated')).not.toThrow();
+        expect(() => o.setArrayAt(1, 654)).not.toThrow();
+        expect(() => o.setArrayAt(2, false)).not.toThrow();
+    });
+
     test('validateOnCreate runs the current model graph through validation before returning the model', () => {
         expect(() =>
             transmute(
@@ -108,6 +123,17 @@ describe('Validation and error checks', () => {
             }
         );
         expect(() => invalid.validate()).toThrowError('Must be an adult');
+    });
+
+    test('validate() checks each array element against its originally captured type, even for heterogeneous arrays', () => {
+        const model = transmute({ array: ['value-2', 456, true] }, { validateInput: false });
+        expect(() => model.validate()).not.toThrow();
+
+        // Without validateInput, the setter allows the type drift so validate() must catch it later.
+        model.setArrayAt(0, 999);
+        expect(() => model.validate()).toThrowError(
+            'Type mismatch at index 0 [array]: argument of type string expected but got number instead'
+        );
     });
 
     test('Check invalid input passed to transmute', () => {
