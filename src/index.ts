@@ -54,6 +54,7 @@ export type Config = {
 
 export type UpdateRulesOptions = {
     mergeRules?: boolean;
+    remove?: string[];
 };
 
 type ModelConfig = Required<Config>;
@@ -71,6 +72,7 @@ type ValidateRuleFn = (
 type DynamicClassInstance = IStringIndex & {
     setInternalReferences: (root: unknown, parent: unknown, index?: number) => unknown;
     updateRules: (rules: Record<string, ValidatorFn>, options?: UpdateRulesOptions) => DynamicClassInstance;
+    removeRules: (...keys: string[]) => DynamicClassInstance;
     validate: () => DynamicClassInstance;
     toJson: () => IStringIndex;
     clone: () => IStringIndex;
@@ -462,9 +464,19 @@ const generateDynamicClassInstance = function (
 
           updateRules(rules, options = {}) {
             const nextRules = options.mergeRules ? { ...this.#modelConfig.rules, ...rules } : { ...rules };
+            if (Array.isArray(options.remove)) {
+                options.remove.forEach((key) => delete nextRules[key]);
+            }
             this.#modelConfig.rules = nextRules;
             return this.getRoot();
          }
+
+          removeRules(...keys) {
+            const nextRules = { ...this.#modelConfig.rules };
+            keys.forEach((key) => delete nextRules[key]);
+            this.#modelConfig.rules = nextRules;
+            return this.getRoot();
+          }
 
           ${initializationMethods}
 

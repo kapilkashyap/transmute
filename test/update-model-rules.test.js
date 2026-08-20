@@ -95,4 +95,54 @@ describe('Updating model validation rules', () => {
         expect(() => user.setAge(4)).toThrowError('Updated original rule');
         expect(() => clone.setAge(10)).toThrowError('Original rule');
     });
+
+    test('removeRules() removes one rule while preserving the rest', () => {
+        const user = transmute(
+            { age: 30, name: 'Jane' },
+            {
+                validateInput: true,
+                rules: {
+                    age: (value) => value >= 18 || 'Age rule',
+                    name: (value) => value.length > 0 || 'Name rule'
+                }
+            }
+        );
+
+        const returned = user.removeRules('age');
+
+        expect(returned).toBe(user);
+        expect(() => user.setAge(1)).not.toThrow();
+        expect(() => user.setName('')).toThrowError('Name rule');
+    });
+
+    test('removeRules() accepts multiple keys, including namespaced paths', () => {
+        const user = transmute({ profile: { age: 30 }, name: 'Jane' }, { validateInput: true });
+        user.updateRules({
+            'root.profile.age': (value) => value >= 18 || 'Nested age rule',
+            name: (value) => value.length > 0 || 'Name rule'
+        });
+
+        user.removeRules('root.profile.age', 'name');
+
+        expect(() => user.getProfile().setAge(1)).not.toThrow();
+        expect(() => user.setName('')).not.toThrow();
+    });
+
+    test('updateRules() supports removing rules via the remove option', () => {
+        const user = transmute(
+            { age: 30, name: 'Jane' },
+            {
+                validateInput: true,
+                rules: {
+                    age: (value) => value >= 18 || 'Age rule',
+                    name: (value) => value.length > 0 || 'Name rule'
+                }
+            }
+        );
+
+        user.updateRules({ email: (value) => /@/.test(value) || 'Email rule' }, { mergeRules: true, remove: ['age'] });
+
+        expect(() => user.setAge(1)).not.toThrow();
+        expect(() => user.setName('')).toThrowError('Name rule');
+    });
 });
