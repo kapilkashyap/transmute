@@ -60,6 +60,22 @@ export type UpdateRulesOptions = {
     remove?: string[];
 };
 
+export type ValidationIssue = {
+    path: string; // Namespaced path of the offending property (e.g. "root.account.password")
+    key: string; // Property name
+    message: string; // Human-readable failure reason
+    index?: number; // Array index, when the failure is on a specific array element
+};
+
+export type ValidationResult = {
+    valid: boolean;
+    errors: ValidationIssue[];
+};
+
+export type ValidateOptions = {
+    collectErrors?: boolean;
+};
+
 type ModelConfig = Required<Config>;
 
 type ValidateRuleFn = (
@@ -87,8 +103,14 @@ type DynamicClassInstance = IStringIndex & {
     removeRules: (...keys: string[]) => DynamicClassInstance;
     updateAsyncRules: (rules: Record<string, AsyncValidatorFn>, options?: UpdateRulesOptions) => DynamicClassInstance;
     removeAsyncRules: (...keys: string[]) => DynamicClassInstance;
-    validate: () => DynamicClassInstance;
-    validateAsync: () => Promise<DynamicClassInstance>;
+    validate: {
+        (options?: { collectErrors?: false }): DynamicClassInstance;
+        (options: { collectErrors: true }): ValidationResult;
+    };
+    validateAsync: {
+        (options?: { collectErrors?: false }): Promise<DynamicClassInstance>;
+        (options: { collectErrors: true }): Promise<ValidationResult>;
+    };
     toJson: () => IStringIndex;
     clone: () => IStringIndex;
     getMetaInfo: () => MetaInfo;
@@ -411,6 +433,177 @@ const validateObjectGraphAsync = async function (instance: DynamicClassInstance)
     return instance;
 };
 
+/* Non-throwing counterpart to validateObjectGraph: collects every failure instead of stopping at the first one */
+const collectObjectGraphErrors = function (instance: DynamicClassInstance): ValidationIssue[] {
+    const errors: ValidationIssue[] = [];
+    const metaInfo = instance.getMetaInfo();
+    const keys = [
+        ...(metaInfo.primitiveKeys != null && metaInfo.primitiveKeys.length > 0 ? metaInfo.primitiveKeys.split(',') : []),
+        ...(metaInfo.objectKeys != null && metaInfo.objectKeys.length > 0 ? metaInfo.objectKeys.split(',') : []),
+        ...(metaInfo.arrayKeys != null && metaInfo.arrayKeys.length > 0 ? metaInfo.arrayKeys.split(',') : [])
+    ].filter(Boolean);
+
+    keys.forEach((key) => {
+        const getter = `get${capitalize(normalize(key))}`;
+        if (typeof instance[getter] !== 'function') {
+            return;
+        }
+
+        const typedInstance = instance as DynamicClassInstance & {
+            getNameSpace: () => string;
+            getRoot: () => unknown;
+            utility: {
+                typeMap?: Record<string, string>;
+                elementTypeMap?: Record<string, string[]>;
+                getTypeOfObject: typeof getTypeOfObject;
+                validateRule: ValidateRuleFn;
+            };
+        };
+
+        const nameSpace = typedInstance.getNameSpace();
+        const path = nameSpace === 'root' || nameSpace == null ? key : `${nameSpace}.${key}`;
+        const value = (instance[getter] as GetterFn)();
+        const expectedType = typedInstance.utility.typeMap?.[key] ?? null;
+        const actualType = typedInstance.utility.getTypeOfObject(value);
+
+        if (expectedType != null && actualType !== expectedType) {
+            errors.push({ path, key, message: `Type mismatch: argument of type ${expectedType} expected but got ${actualType} instead` });
+        }
+
+        try {
+            typedInstance.utility.validateRule(nameSpace, key, value, undefined, typedInstance, typedInstance.getRoot());
+        } catch (error) {
+            errors.push({ path, key, message: error instanceof Error ? error.message : String(error) });
+        }
+
+        if (Array.isArray(value)) {
+            const elementTypes = typedInstance.utility.elementTypeMap?.[key];
+            value.forEach((item, itemIndex) => {
+                const expectedElementType = elementTypes?.[itemIndex];
+                const actualElementType = typedInstance.utility.getTypeOfObject(item);
+                if (expectedElementType != null && actualElementType !== expectedElementType) {
+                    errors.push({
+                        path,
+                        key,
+                        index: itemIndex,
+                        message: `Type mismatch at index ${itemIndex} [${key}]: argument of type ${expectedElementType} expected but got ${actualElementType} instead`
+                    });
+                }
+                if (
+                    item != null &&
+                    typeof item === 'object' &&
+                    hasObjectMetaInfo(item) &&
+                    typeof (item as DynamicClassInstance).validate === 'function'
+                ) {
+                    errors.push(...((item as DynamicClassInstance).validate({ collectErrors: true }) as ValidationResult).errors);
+                }
+            });
+            return;
+        }
+
+        if (
+            value != null &&
+            typeof value === 'object' &&
+            hasObjectMetaInfo(value) &&
+            typeof (value as DynamicClassInstance).validate === 'function'
+        ) {
+            errors.push(...((value as DynamicClassInstance).validate({ collectErrors: true }) as ValidationResult).errors);
+        }
+    });
+
+    return errors;
+};
+
+/* Non-throwing counterpart to validateObjectGraphAsync: collects sync and async rule failures in a single recursive pass */
+const collectObjectGraphErrorsAsync = async function (instance: DynamicClassInstance): Promise<ValidationIssue[]> {
+    const errors: ValidationIssue[] = [];
+    const metaInfo = instance.getMetaInfo();
+    const keys = [
+        ...(metaInfo.primitiveKeys != null && metaInfo.primitiveKeys.length > 0 ? metaInfo.primitiveKeys.split(',') : []),
+        ...(metaInfo.objectKeys != null && metaInfo.objectKeys.length > 0 ? metaInfo.objectKeys.split(',') : []),
+        ...(metaInfo.arrayKeys != null && metaInfo.arrayKeys.length > 0 ? metaInfo.arrayKeys.split(',') : [])
+    ].filter(Boolean);
+
+    for (const key of keys) {
+        const getter = `get${capitalize(normalize(key))}`;
+        if (typeof instance[getter] !== 'function') {
+            continue;
+        }
+
+        const typedInstance = instance as DynamicClassInstance & {
+            getNameSpace: () => string;
+            getRoot: () => unknown;
+            utility: {
+                typeMap?: Record<string, string>;
+                elementTypeMap?: Record<string, string[]>;
+                getTypeOfObject: typeof getTypeOfObject;
+                validateRule: ValidateRuleFn;
+                validateAsyncRule: ValidateAsyncRuleFn;
+            };
+        };
+
+        const nameSpace = typedInstance.getNameSpace();
+        const path = nameSpace === 'root' || nameSpace == null ? key : `${nameSpace}.${key}`;
+        const value = (instance[getter] as GetterFn)();
+        const expectedType = typedInstance.utility.typeMap?.[key] ?? null;
+        const actualType = typedInstance.utility.getTypeOfObject(value);
+
+        if (expectedType != null && actualType !== expectedType) {
+            errors.push({ path, key, message: `Type mismatch: argument of type ${expectedType} expected but got ${actualType} instead` });
+        }
+
+        try {
+            typedInstance.utility.validateRule(nameSpace, key, value, undefined, typedInstance, typedInstance.getRoot());
+        } catch (error) {
+            errors.push({ path, key, message: error instanceof Error ? error.message : String(error) });
+        }
+
+        try {
+            await typedInstance.utility.validateAsyncRule(nameSpace, key, value, typedInstance, typedInstance.getRoot());
+        } catch (error) {
+            errors.push({ path, key, message: error instanceof Error ? error.message : String(error) });
+        }
+
+        if (Array.isArray(value)) {
+            const elementTypes = typedInstance.utility.elementTypeMap?.[key];
+            for (const [itemIndex, item] of value.entries()) {
+                const expectedElementType = elementTypes?.[itemIndex];
+                const actualElementType = typedInstance.utility.getTypeOfObject(item);
+                if (expectedElementType != null && actualElementType !== expectedElementType) {
+                    errors.push({
+                        path,
+                        key,
+                        index: itemIndex,
+                        message: `Type mismatch at index ${itemIndex} [${key}]: argument of type ${expectedElementType} expected but got ${actualElementType} instead`
+                    });
+                }
+                if (
+                    item != null &&
+                    typeof item === 'object' &&
+                    hasObjectMetaInfo(item) &&
+                    typeof (item as DynamicClassInstance).validateAsync === 'function'
+                ) {
+                    const nestedResult = (await (item as DynamicClassInstance).validateAsync({ collectErrors: true })) as ValidationResult;
+                    errors.push(...nestedResult.errors);
+                }
+            }
+            continue;
+        }
+
+        if (
+            value != null &&
+            typeof value === 'object' &&
+            hasObjectMetaInfo(value) &&
+            typeof (value as DynamicClassInstance).validateAsync === 'function'
+        ) {
+            const nestedResult = (await (value as DynamicClassInstance).validateAsync({ collectErrors: true })) as ValidationResult;
+            errors.push(...nestedResult.errors);
+        }
+    }
+
+    return errors;
+};
+
 export const memorySizeOf = function (obj: IStringIndex) {
     const formatByteSize = function (bytes: number) {
         const kiloByte = 1024;
@@ -683,11 +876,19 @@ const generateDynamicClassInstance = function (
             };
         }
 
-        dynamicClass.prototype.validate = function (this: DynamicClassInstance) {
+        dynamicClass.prototype.validate = function (this: DynamicClassInstance, options?: ValidateOptions) {
+            if (options?.collectErrors) {
+                const errors = collectObjectGraphErrors(this);
+                return { valid: errors.length === 0, errors };
+            }
             return validateObjectGraph(this);
         };
 
-        dynamicClass.prototype.validateAsync = function (this: DynamicClassInstance) {
+        dynamicClass.prototype.validateAsync = async function (this: DynamicClassInstance, options?: ValidateOptions) {
+            if (options?.collectErrors) {
+                const errors = await collectObjectGraphErrorsAsync(this);
+                return { valid: errors.length === 0, errors };
+            }
             return validateObjectGraphAsync(this);
         };
 
