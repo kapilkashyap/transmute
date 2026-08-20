@@ -103,6 +103,21 @@ const getTypeOfObject = function (o: unknown) {
         .toLowerCase();
 };
 
+/* Match a dot-separated rule path against a pattern where '*' stands in for exactly one segment */
+const matchesWildcardPath = function (pattern: string, path: string): boolean {
+    const patternSegments = pattern.split('.');
+    const pathSegments = path.split('.');
+    if (patternSegments.length !== pathSegments.length) {
+        return false;
+    }
+    return patternSegments.every((segment, i) => segment === '*' || segment === pathSegments[i]);
+};
+
+/* Find the first configured rule key whose wildcard pattern matches the given namespaced path */
+const findWildcardRuleKey = function (rules: Record<string, ValidatorFn>, nsKey: string): string | undefined {
+    return Object.keys(rules).find((ruleKey) => ruleKey.includes('*') && matchesWildcardPath(ruleKey, nsKey));
+};
+
 /* Validate rule for a property */
 const validateRule = function (
     modelConfig: ModelConfig,
@@ -119,8 +134,12 @@ const validateRule = function (
 
         let usedKey = key;
         const contextPath = nameSpace === 'root' ? key : (nsKey ?? key);
+        const wildcardKey = nsKey != null ? findWildcardRuleKey(modelConfig.rules, nsKey) : undefined;
         if (nsKey != null && modelConfig.rules[nsKey] != null) {
             validator = validator ?? modelConfig.rules[nsKey];
+            usedKey = nsKey;
+        } else if (nsKey != null && wildcardKey != null) {
+            validator = validator ?? modelConfig.rules[wildcardKey];
             usedKey = nsKey;
         } else if (modelConfig.rules[key] != null) {
             validator = validator ?? modelConfig.rules[key];
