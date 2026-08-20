@@ -45,11 +45,14 @@ export type ValidatorContext = {
 
 export type ValidatorFn = (value: unknown, context: ValidatorContext) => boolean | string;
 
+export type AsyncValidatorFn = (value: unknown, context: ValidatorContext) => boolean | string | Promise<boolean | string>;
+
 export type Config = {
     validateInput?: boolean;
     validateOnCreate?: boolean;
     cloneable?: boolean;
     rules?: Record<string, ValidatorFn>;
+    asyncRules?: Record<string, AsyncValidatorFn>;
 };
 
 export type UpdateRulesOptions = {
@@ -69,17 +72,30 @@ type ValidateRuleFn = (
     index?: number
 ) => void;
 
+type ValidateAsyncRuleFn = (
+    nameSpace: string | undefined,
+    key: string,
+    value: unknown,
+    parentObject?: unknown,
+    rootObject?: unknown,
+    index?: number
+) => Promise<void>;
+
 type DynamicClassInstance = IStringIndex & {
     setInternalReferences: (root: unknown, parent: unknown, index?: number) => unknown;
     updateRules: (rules: Record<string, ValidatorFn>, options?: UpdateRulesOptions) => DynamicClassInstance;
     removeRules: (...keys: string[]) => DynamicClassInstance;
+    updateAsyncRules: (rules: Record<string, AsyncValidatorFn>, options?: UpdateRulesOptions) => DynamicClassInstance;
+    removeAsyncRules: (...keys: string[]) => DynamicClassInstance;
     validate: () => DynamicClassInstance;
+    validateAsync: () => Promise<DynamicClassInstance>;
     toJson: () => IStringIndex;
     clone: () => IStringIndex;
     getMetaInfo: () => MetaInfo;
     utility: {
         getTypeOfObject: typeof getTypeOfObject;
         validateRule: ValidateRuleFn;
+        validateAsyncRule: ValidateAsyncRuleFn;
     };
 };
 
@@ -114,7 +130,7 @@ const matchesWildcardPath = function (pattern: string, path: string): boolean {
 };
 
 /* Find the first configured rule key whose wildcard pattern matches the given namespaced path */
-const findWildcardRuleKey = function (rules: Record<string, ValidatorFn>, nsKey: string): string | undefined {
+const findWildcardRuleKey = function <T>(rules: Record<string, T>, nsKey: string): string | undefined {
     return Object.keys(rules).find((ruleKey) => ruleKey.includes('*') && matchesWildcardPath(ruleKey, nsKey));
 };
 
@@ -186,6 +202,75 @@ const validateRule = function (
     }
 };
 
+/* Async counterpart to validateRule, used only by validateAsync() so synchronous setters stay untouched */
+const validateAsyncRule = async function (
+    modelConfig: ModelConfig,
+    nameSpace: string | undefined,
+    key: string,
+    value: unknown,
+    parentObject?: unknown,
+    rootObject?: unknown,
+    index?: number
+): Promise<void> {
+    if (modelConfig.asyncRules == null) {
+        return;
+    }
+
+    const nsKey = nameSpace != null && nameSpace.trim().length > 0 ? `${nameSpace}.${key}` : undefined;
+
+    let usedKey = key;
+    let validator: AsyncValidatorFn | undefined;
+    const contextPath = nameSpace === 'root' ? key : (nsKey ?? key);
+    const wildcardKey = nsKey != null ? findWildcardRuleKey(modelConfig.asyncRules, nsKey) : undefined;
+    if (nsKey != null && modelConfig.asyncRules[nsKey] != null) {
+        validator = modelConfig.asyncRules[nsKey];
+        usedKey = nsKey;
+    } else if (nsKey != null && wildcardKey != null) {
+        validator = modelConfig.asyncRules[wildcardKey];
+        usedKey = nsKey;
+    } else if (modelConfig.asyncRules[key] != null) {
+        validator = modelConfig.asyncRules[key];
+        usedKey = key;
+    }
+
+    if (validator == null) {
+        return;
+    }
+
+    const validate = async (v: unknown, i?: number) => {
+        const finalIndex = i ?? index ?? (parentObject as { getIndex?: () => number })?.getIndex?.();
+        const context: ValidatorContext = {
+            key,
+            path: contextPath,
+            value: v,
+            parentObject,
+            rootObject,
+            index: finalIndex,
+            getParent: () => parentObject,
+            getRoot: () => rootObject
+        };
+        const validationResponse = await (validator as AsyncValidatorFn)(v, context);
+
+        if (validationResponse !== true) {
+            if (typeof validationResponse === 'string') {
+                if (finalIndex != null) {
+                    throw new Error(`Validation error at index ${finalIndex} [${usedKey}]: ${validationResponse}`);
+                }
+                throw new Error(`Validation error [${usedKey}]: ${validationResponse}`);
+            }
+            throw new Error(`Validation failed for property ${usedKey} with value ${v}`);
+        }
+    };
+
+    if (Array.isArray(value)) {
+        for (const [idx, v] of value.entries()) {
+            await validate(v, idx);
+        }
+        return;
+    }
+    await validate(value);
+};
+
 const normalize = function (s: string) {
     if (!isNaN(Number(s[0]))) {
         s = '_' + s;
@@ -206,7 +291,8 @@ const normalizeConfig = function (cfg?: Config): ModelConfig {
         validateInput: cfg?.validateInput ?? false,
         validateOnCreate: cfg?.validateOnCreate ?? false,
         cloneable: cfg?.cloneable ?? true,
-        rules: { ...(cfg?.rules ?? {}) }
+        rules: { ...(cfg?.rules ?? {}) },
+        asyncRules: { ...(cfg?.asyncRules ?? {}) }
     };
 };
 
@@ -266,6 +352,61 @@ const validateObjectGraph = function (instance: DynamicClassInstance): DynamicCl
             (value as DynamicClassInstance).validate();
         }
     });
+
+    return instance;
+};
+
+/* Async counterpart to validateObjectGraph: runs the same sync checks first, then awaits any configured async rules */
+const validateObjectGraphAsync = async function (instance: DynamicClassInstance): Promise<DynamicClassInstance> {
+    validateObjectGraph(instance);
+
+    const metaInfo = instance.getMetaInfo();
+    const keys = [
+        ...(metaInfo.primitiveKeys != null && metaInfo.primitiveKeys.length > 0 ? metaInfo.primitiveKeys.split(',') : []),
+        ...(metaInfo.objectKeys != null && metaInfo.objectKeys.length > 0 ? metaInfo.objectKeys.split(',') : []),
+        ...(metaInfo.arrayKeys != null && metaInfo.arrayKeys.length > 0 ? metaInfo.arrayKeys.split(',') : [])
+    ].filter(Boolean);
+
+    for (const key of keys) {
+        const getter = `get${capitalize(normalize(key))}`;
+        if (typeof instance[getter] !== 'function') {
+            continue;
+        }
+
+        const typedInstance = instance as DynamicClassInstance & {
+            getNameSpace: () => string;
+            getRoot: () => unknown;
+            utility: {
+                validateAsyncRule: ValidateAsyncRuleFn;
+            };
+        };
+
+        const value = (instance[getter] as GetterFn)();
+        await typedInstance.utility.validateAsyncRule(typedInstance.getNameSpace(), key, value, typedInstance, typedInstance.getRoot());
+
+        if (Array.isArray(value)) {
+            for (const item of value) {
+                if (
+                    item != null &&
+                    typeof item === 'object' &&
+                    hasObjectMetaInfo(item) &&
+                    typeof (item as DynamicClassInstance).validateAsync === 'function'
+                ) {
+                    await (item as DynamicClassInstance).validateAsync();
+                }
+            }
+            continue;
+        }
+
+        if (
+            value != null &&
+            typeof value === 'object' &&
+            hasObjectMetaInfo(value) &&
+            typeof (value as DynamicClassInstance).validateAsync === 'function'
+        ) {
+            await (value as DynamicClassInstance).validateAsync();
+        }
+    }
 
     return instance;
 };
@@ -497,6 +638,22 @@ const generateDynamicClassInstance = function (
             return this.getRoot();
           }
 
+          updateAsyncRules(rules, options = {}) {
+            const nextRules = options.mergeRules ? { ...this.#modelConfig.asyncRules, ...rules } : { ...rules };
+            if (Array.isArray(options.remove)) {
+                options.remove.forEach((key) => delete nextRules[key]);
+            }
+            this.#modelConfig.asyncRules = nextRules;
+            return this.getRoot();
+          }
+
+          removeAsyncRules(...keys) {
+            const nextRules = { ...this.#modelConfig.asyncRules };
+            keys.forEach((key) => delete nextRules[key]);
+            this.#modelConfig.asyncRules = nextRules;
+            return this.getRoot();
+          }
+
           ${initializationMethods}
 
           ${configForModel.validateInput ? accessorMethodsWithValidation : accessorMethods}
@@ -530,6 +687,10 @@ const generateDynamicClassInstance = function (
             return validateObjectGraph(this);
         };
 
+        dynamicClass.prototype.validateAsync = function (this: DynamicClassInstance) {
+            return validateObjectGraphAsync(this);
+        };
+
         // Construct a meta-info of the instance
         dynamicClass.prototype.getMetaInfo = function () {
             let o = {};
@@ -557,7 +718,15 @@ const generateDynamicClassInstance = function (
                 parentObject?: unknown,
                 rootObject?: unknown,
                 index?: number
-            ) => validateRule(configForModel, nameSpace, key, value, validator, parentObject, rootObject, index)
+            ) => validateRule(configForModel, nameSpace, key, value, validator, parentObject, rootObject, index),
+            validateAsyncRule: (
+                nameSpace: string | undefined,
+                key: string,
+                value: unknown,
+                parentObject?: unknown,
+                rootObject?: unknown,
+                index?: number
+            ) => validateAsyncRule(configForModel, nameSpace, key, value, parentObject, rootObject, index)
         };
     }
 
