@@ -72,4 +72,29 @@ describe('Rule metadata', () => {
         expect(() => model.setCode('B-1')).toThrowError('Code must start with A-');
         expect(() => model.setCode('A-2')).not.toThrow();
     });
+
+    test('supports required and custom validators in async rule metadata', async () => {
+        const model = transmute(
+            { username: 'available' },
+            {
+                asyncRules: {
+                    username: {
+                        required: true,
+                        validator: async (value) => value === 'available' || 'Username is unavailable'
+                    }
+                }
+            }
+        );
+
+        await expect(model.validateAsync()).resolves.toBe(model);
+
+        const missing = transmute(
+            { username: null },
+            {
+                asyncRules: { username: { required: true } }
+            }
+        );
+
+        await expect(missing.validateAsync()).rejects.toThrowError('Value is required');
+    });
 });
