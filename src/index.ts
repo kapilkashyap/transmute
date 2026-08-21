@@ -45,6 +45,34 @@ export type ValidatorContext = {
 
 export type ValidatorFn = (value: unknown, context: ValidatorContext) => boolean | string;
 
+// Creates a validator that succeeds only when every supplied validator succeeds.
+export const allOf = function (...validators: ValidatorFn[]): ValidatorFn {
+    return (value: unknown, context: ValidatorContext): boolean | string => {
+        for (const validator of validators) {
+            const response = validator(value, context);
+            if (response !== true) {
+                return response;
+            }
+        }
+        return true;
+    };
+};
+
+// Creates a validator that succeeds when at least one supplied validator succeeds.
+export const anyOf = function (...validators: ValidatorFn[]): ValidatorFn {
+    return (value: unknown, context: ValidatorContext): boolean | string => {
+        let lastFailure: boolean | string = false;
+        for (const validator of validators) {
+            const response = validator(value, context);
+            if (response === true) {
+                return true;
+            }
+            lastFailure = response;
+        }
+        return lastFailure;
+    };
+};
+
 export type AsyncValidatorFn = (value: unknown, context: ValidatorContext) => boolean | string | Promise<boolean | string>;
 
 export type Config = {
