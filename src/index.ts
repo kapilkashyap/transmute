@@ -210,6 +210,23 @@ const findWildcardRuleKey = function <T>(rules: Record<string, T>, nsKey: string
     return Object.keys(rules).find((ruleKey) => ruleKey.includes('*') && matchesWildcardPath(ruleKey, nsKey));
 };
 
+const resolveConfiguredRule = function <T>(rules: Record<string, T>, nameSpace: string | undefined, key: string, suffix = '') {
+    // Resolve exact, wildcard, and optional [] collection keys while preserving the key used in errors.
+    const namespacedKey = nameSpace != null && nameSpace.trim().length > 0 ? `${nameSpace}.${key}` : undefined;
+    const fullKey = namespacedKey != null ? `${namespacedKey}${suffix}` : `${key}${suffix}`;
+    const wildcardKey = namespacedKey != null ? findWildcardRuleKey(rules, `${namespacedKey}${suffix}`) : undefined;
+    if (namespacedKey != null && rules[`${namespacedKey}${suffix}`] != null) {
+        return { rule: rules[`${namespacedKey}${suffix}`], usedKey: `${namespacedKey}${suffix}` };
+    }
+    if (wildcardKey != null) {
+        return { rule: rules[wildcardKey], usedKey: `${namespacedKey}${suffix}` };
+    }
+    if (rules[`${key}${suffix}`] != null) {
+        return { rule: rules[`${key}${suffix}`], usedKey: `${key}${suffix}` };
+    }
+    return { rule: undefined, usedKey: fullKey };
+};
+
 const isRuleMetadata = (rule: Rule | undefined): rule is RuleMetadata => typeof rule === 'object' && rule != null;
 const isAsyncRuleMetadata = (rule: AsyncRule | undefined): rule is AsyncRuleMetadata => typeof rule === 'object' && rule != null;
 
@@ -228,23 +245,18 @@ const validateRule = function (
     if (modelConfig.rules != null) {
         const nsKey = nameSpace != null && nameSpace.trim().length > 0 ? `${nameSpace}.${key}` : undefined;
 
-        let usedKey = key;
-        let configuredRule: Rule | undefined;
+        // Resolve element and collection rules independently so both can apply to the same array.
+        const elementResolution = resolveConfiguredRule(modelConfig.rules, nameSpace, key);
+        const collectionResolution = resolveConfiguredRule(modelConfig.rules, nameSpace, key, '[]');
+        const usedKey = elementResolution.usedKey;
+        const configuredRule = elementResolution.rule;
+        const collectionRule = collectionResolution.rule;
         const contextPath = nameSpace === 'root' ? key : (nsKey ?? key);
-        const wildcardKey = nsKey != null ? findWildcardRuleKey(modelConfig.rules, nsKey) : undefined;
-        if (nsKey != null && modelConfig.rules[nsKey] != null) {
-            configuredRule = modelConfig.rules[nsKey];
-            usedKey = nsKey;
-        } else if (nsKey != null && wildcardKey != null) {
-            configuredRule = modelConfig.rules[wildcardKey];
-            usedKey = nsKey;
-        } else if (modelConfig.rules[key] != null) {
-            configuredRule = modelConfig.rules[key];
-            usedKey = key;
-        }
 
         const metadata = isRuleMetadata(configuredRule) ? configuredRule : undefined;
         validator = validator ?? (typeof configuredRule === 'function' ? configuredRule : metadata?.validator);
+        const collectionMetadata = isRuleMetadata(collectionRule) ? collectionRule : undefined;
+        const collectionValidator = typeof collectionRule === 'function' ? collectionRule : collectionMetadata?.validator;
 
         const throwValidationError = (message: string, errorIndex?: number) => {
             if (errorIndex != null) {
@@ -301,6 +313,46 @@ const validateRule = function (
             }
         };
 
+        const validateCollection = (collectionValue: unknown) => {
+            if (collectionMetadata?.required === true && collectionValue == null) {
+                throw new Error(`Validation error [${collectionResolution.usedKey}]: Value is required`);
+            }
+            if (collectionValidator == null || collectionValue == null) {
+                return;
+            }
+            const context: ValidatorContext = {
+                key,
+                path: contextPath,
+                value: collectionValue,
+                parentObject,
+                rootObject,
+                // Collection validators inspect the full array, so there is no element index.
+                getParent: () => parentObject,
+                getRoot: () => rootObject
+            };
+            const validationResponse = collectionValidator(collectionValue, context);
+            if (validationResponse !== true) {
+                if (typeof validationResponse === 'string') {
+                    throw new Error(`Validation error [${collectionResolution.usedKey}]: ${validationResponse}`);
+                }
+                throw new Error(`Validation failed for property ${collectionResolution.usedKey} with value ${collectionValue}`);
+            }
+        };
+
+        if (collectionRule != null) {
+            let collectionValue = value;
+            if (index != null && parentObject != null && typeof parentObject === 'object') {
+                // Validate the array state that would exist after an indexed update without mutating it first.
+                const getter = `get${capitalize(normalize(key))}`;
+                const currentValue = (parentObject as IStringIndex)[getter];
+                const currentArray = typeof currentValue === 'function' ? (currentValue as () => unknown[]).call(parentObject) : undefined;
+                if (Array.isArray(currentArray)) {
+                    collectionValue = currentArray.map((item, itemIndex) => (itemIndex === index ? value : item));
+                }
+            }
+            validateCollection(collectionValue);
+        }
+
         if (validator != null && getTypeOfObject(validator) === 'function' && value != null) {
             if (Array.isArray(value)) {
                 value.forEach((v, idx) => validate(v, idx));
@@ -327,30 +379,21 @@ const validateAsyncRule = async function (
 
     const nsKey = nameSpace != null && nameSpace.trim().length > 0 ? `${nameSpace}.${key}` : undefined;
 
-    let usedKey = key;
-    let configuredRule: AsyncRule | undefined;
+    // Resolve element and collection rules independently so both can apply to the same array.
+    const elementResolution = resolveConfiguredRule(modelConfig.asyncRules, nameSpace, key);
+    const collectionResolution = resolveConfiguredRule(modelConfig.asyncRules, nameSpace, key, '[]');
+    const usedKey = elementResolution.usedKey;
+    const configuredRule = elementResolution.rule;
+    const collectionRule = collectionResolution.rule;
     const contextPath = nameSpace === 'root' ? key : (nsKey ?? key);
-    const wildcardKey = nsKey != null ? findWildcardRuleKey(modelConfig.asyncRules, nsKey) : undefined;
-    if (nsKey != null && modelConfig.asyncRules[nsKey] != null) {
-        configuredRule = modelConfig.asyncRules[nsKey];
-        usedKey = nsKey;
-    } else if (nsKey != null && wildcardKey != null) {
-        configuredRule = modelConfig.asyncRules[wildcardKey];
-        usedKey = nsKey;
-    } else if (modelConfig.asyncRules[key] != null) {
-        configuredRule = modelConfig.asyncRules[key];
-        usedKey = key;
-    }
 
     const metadata = isAsyncRuleMetadata(configuredRule) ? configuredRule : undefined;
     const validator = typeof configuredRule === 'function' ? configuredRule : metadata?.validator;
+    const collectionMetadata = isAsyncRuleMetadata(collectionRule) ? collectionRule : undefined;
+    const collectionValidator = typeof collectionRule === 'function' ? collectionRule : collectionMetadata?.validator;
 
     if (metadata?.required === true && value == null) {
         throw new Error(`Validation error [${usedKey}]: Value is required`);
-    }
-
-    if (validator == null) {
-        return;
     }
 
     const validate = async (v: unknown, i?: number) => {
@@ -377,6 +420,41 @@ const validateAsyncRule = async function (
             throw new Error(`Validation failed for property ${usedKey} with value ${v}`);
         }
     };
+
+    const validateCollection = async (collectionValue: unknown) => {
+        if (collectionMetadata?.required === true && collectionValue == null) {
+            throw new Error(`Validation error [${collectionResolution.usedKey}]: Value is required`);
+        }
+        if (collectionValidator == null || collectionValue == null) {
+            return;
+        }
+        const context: ValidatorContext = {
+            key,
+            path: contextPath,
+            value: collectionValue,
+            parentObject,
+            rootObject,
+            // Collection validators inspect the full array, so there is no element index.
+            getParent: () => parentObject,
+            getRoot: () => rootObject
+        };
+        const validationResponse = await collectionValidator(collectionValue, context);
+        if (validationResponse !== true) {
+            if (typeof validationResponse === 'string') {
+                throw new Error(`Validation error [${collectionResolution.usedKey}]: ${validationResponse}`);
+            }
+            throw new Error(`Validation failed for property ${collectionResolution.usedKey} with value ${collectionValue}`);
+        }
+    };
+
+    if (collectionRule != null) {
+        await validateCollection(value);
+    }
+
+    // Collection-only async rules must run before returning when no element rule is configured.
+    if (validator == null) {
+        return;
+    }
 
     if (Array.isArray(value)) {
         for (const [idx, v] of value.entries()) {
