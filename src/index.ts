@@ -45,6 +45,19 @@ export type ValidatorContext = {
 
 export type ValidatorFn = (value: unknown, context: ValidatorContext) => boolean | string;
 
+export type RuleMetadata = {
+    // Rejects null and undefined values.
+    required?: boolean;
+
+    // Allows the initial value but prevents later setter changes.
+    immutable?: boolean;
+
+    // Applies custom validation alongside the metadata constraints.
+    validator?: ValidatorFn;
+};
+
+export type Rule = ValidatorFn | RuleMetadata;
+
 // Creates a validator that succeeds only when every supplied validator succeeds.
 export const allOf = function (...validators: ValidatorFn[]): ValidatorFn {
     return (value: unknown, context: ValidatorContext): boolean | string => {
@@ -79,7 +92,7 @@ export type Config = {
     validateInput?: boolean;
     validateOnCreate?: boolean;
     cloneable?: boolean;
-    rules?: Record<string, ValidatorFn>;
+    rules?: Record<string, Rule>;
     asyncRules?: Record<string, AsyncValidatorFn>;
 };
 
@@ -113,7 +126,8 @@ type ValidateRuleFn = (
     validator?: ValidatorFn,
     parentObject?: unknown,
     rootObject?: unknown,
-    index?: number
+    index?: number,
+    isUpdate?: boolean
 ) => void;
 
 type ValidateAsyncRuleFn = (
@@ -127,7 +141,7 @@ type ValidateAsyncRuleFn = (
 
 type DynamicClassInstance = IStringIndex & {
     setInternalReferences: (root: unknown, parent: unknown, index?: number) => unknown;
-    updateRules: (rules: Record<string, ValidatorFn>, options?: UpdateRulesOptions) => DynamicClassInstance;
+    updateRules: (rules: Record<string, Rule>, options?: UpdateRulesOptions) => DynamicClassInstance;
     removeRules: (...keys: string[]) => DynamicClassInstance;
     updateAsyncRules: (rules: Record<string, AsyncValidatorFn>, options?: UpdateRulesOptions) => DynamicClassInstance;
     removeAsyncRules: (...keys: string[]) => DynamicClassInstance;
@@ -184,6 +198,8 @@ const findWildcardRuleKey = function <T>(rules: Record<string, T>, nsKey: string
     return Object.keys(rules).find((ruleKey) => ruleKey.includes('*') && matchesWildcardPath(ruleKey, nsKey));
 };
 
+const isRuleMetadata = (rule: Rule | undefined): rule is RuleMetadata => typeof rule === 'object' && rule != null;
+
 /* Validate rule for a property */
 const validateRule = function (
     modelConfig: ModelConfig,
@@ -193,23 +209,53 @@ const validateRule = function (
     validator?: ValidatorFn,
     parentObject?: unknown,
     rootObject?: unknown,
-    index?: number
+    index?: number,
+    isUpdate = false
 ) {
     if (modelConfig.rules != null) {
         const nsKey = nameSpace != null && nameSpace.trim().length > 0 ? `${nameSpace}.${key}` : undefined;
 
         let usedKey = key;
+        let configuredRule: Rule | undefined;
         const contextPath = nameSpace === 'root' ? key : (nsKey ?? key);
         const wildcardKey = nsKey != null ? findWildcardRuleKey(modelConfig.rules, nsKey) : undefined;
         if (nsKey != null && modelConfig.rules[nsKey] != null) {
-            validator = validator ?? modelConfig.rules[nsKey];
+            configuredRule = modelConfig.rules[nsKey];
             usedKey = nsKey;
         } else if (nsKey != null && wildcardKey != null) {
-            validator = validator ?? modelConfig.rules[wildcardKey];
+            configuredRule = modelConfig.rules[wildcardKey];
             usedKey = nsKey;
         } else if (modelConfig.rules[key] != null) {
-            validator = validator ?? modelConfig.rules[key];
+            configuredRule = modelConfig.rules[key];
             usedKey = key;
+        }
+
+        const metadata = isRuleMetadata(configuredRule) ? configuredRule : undefined;
+        validator = validator ?? (typeof configuredRule === 'function' ? configuredRule : metadata?.validator);
+
+        const throwValidationError = (message: string, errorIndex?: number) => {
+            if (errorIndex != null) {
+                throw new Error(`Validation error at index ${errorIndex} [${usedKey}]: ${message}`);
+            }
+            throw new Error(`Validation error [${usedKey}]: ${message}`);
+        };
+
+        if (metadata?.required === true && value == null) {
+            throwValidationError('Value is required', index);
+        }
+
+        // Immutable rules apply only to setter updates so unchanged values remain valid during model validation.
+        if (metadata?.immutable === true && isUpdate) {
+            const getter = `get${capitalize(normalize(key))}`;
+            const currentValue =
+                parentObject != null && typeof parentObject === 'object' && getter in parentObject
+                    ? (parentObject as IStringIndex)[getter]
+                    : undefined;
+            const previousValue = typeof currentValue === 'function' ? (currentValue as () => unknown).call(parentObject) : undefined;
+            const valueToCompare = index != null && Array.isArray(previousValue) ? previousValue[index] : previousValue;
+            if (!Object.is(valueToCompare, value)) {
+                throwValidationError('Property is immutable', index);
+            }
         }
 
         const validate = (v: unknown, i?: number) => {
@@ -690,7 +736,9 @@ const generateDynamicClassInstance = function (
                   v COMMA_PLACEHOLDER 
                   validator COMMA_PLACEHOLDER
                   this COMMA_PLACEHOLDER
-                  this.getRoot()
+                  this.getRoot() COMMA_PLACEHOLDER
+                  undefined COMMA_PLACEHOLDER
+                  true
                 );
                 this.${HASH}${normalize(key)} = v;
                 return this;
@@ -715,7 +763,9 @@ const generateDynamicClassInstance = function (
                       v COMMA_PLACEHOLDER 
                       validator COMMA_PLACEHOLDER
                       this COMMA_PLACEHOLDER
-                      this.getRoot()
+                      this.getRoot() COMMA_PLACEHOLDER
+                      undefined COMMA_PLACEHOLDER
+                      true
                     );
                     this.${HASH}${normalize(key)} = v;
                     return this;
@@ -748,7 +798,8 @@ const generateDynamicClassInstance = function (
                           validator COMMA_PLACEHOLDER
                           this COMMA_PLACEHOLDER
                           this.getRoot() COMMA_PLACEHOLDER
-                          i
+                          i COMMA_PLACEHOLDER
+                          true
                         );
                         this.${HASH}${normalize(key)}[i] = v;
                         return this;
@@ -791,7 +842,8 @@ const generateDynamicClassInstance = function (
                           validator COMMA_PLACEHOLDER
                           this COMMA_PLACEHOLDER
                           this.getRoot() COMMA_PLACEHOLDER
-                          i
+                          i COMMA_PLACEHOLDER
+                          true
                         );
                         value[i] = v;
                         return this;
@@ -946,8 +998,9 @@ const generateDynamicClassInstance = function (
                 validator?: ValidatorFn,
                 parentObject?: unknown,
                 rootObject?: unknown,
-                index?: number
-            ) => validateRule(configForModel, nameSpace, key, value, validator, parentObject, rootObject, index),
+                index?: number,
+                isUpdate?: boolean
+            ) => validateRule(configForModel, nameSpace, key, value, validator, parentObject, rootObject, index, isUpdate),
             validateAsyncRule: (
                 nameSpace: string | undefined,
                 key: string,
