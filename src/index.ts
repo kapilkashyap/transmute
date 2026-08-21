@@ -88,12 +88,22 @@ export const anyOf = function (...validators: ValidatorFn[]): ValidatorFn {
 
 export type AsyncValidatorFn = (value: unknown, context: ValidatorContext) => boolean | string | Promise<boolean | string>;
 
+export type AsyncRuleMetadata = {
+    // Rejects null and undefined values during asynchronous validation.
+    required?: boolean;
+
+    // Applies custom synchronous or asynchronous validation.
+    validator?: AsyncValidatorFn;
+};
+
+export type AsyncRule = AsyncValidatorFn | AsyncRuleMetadata;
+
 export type Config = {
     validateInput?: boolean;
     validateOnCreate?: boolean;
     cloneable?: boolean;
     rules?: Record<string, Rule>;
-    asyncRules?: Record<string, AsyncValidatorFn>;
+    asyncRules?: Record<string, AsyncRule>;
 };
 
 export type UpdateRulesOptions = {
@@ -141,9 +151,11 @@ type ValidateAsyncRuleFn = (
 
 type DynamicClassInstance = IStringIndex & {
     setInternalReferences: (root: unknown, parent: unknown, index?: number) => unknown;
+    getRules: () => Record<string, Rule>;
+    getAsyncRules: () => Record<string, AsyncRule>;
     updateRules: (rules: Record<string, Rule>, options?: UpdateRulesOptions) => DynamicClassInstance;
     removeRules: (...keys: string[]) => DynamicClassInstance;
-    updateAsyncRules: (rules: Record<string, AsyncValidatorFn>, options?: UpdateRulesOptions) => DynamicClassInstance;
+    updateAsyncRules: (rules: Record<string, AsyncRule>, options?: UpdateRulesOptions) => DynamicClassInstance;
     removeAsyncRules: (...keys: string[]) => DynamicClassInstance;
     validate: {
         (options?: { collectErrors?: false }): DynamicClassInstance;
@@ -199,6 +211,7 @@ const findWildcardRuleKey = function <T>(rules: Record<string, T>, nsKey: string
 };
 
 const isRuleMetadata = (rule: Rule | undefined): rule is RuleMetadata => typeof rule === 'object' && rule != null;
+const isAsyncRuleMetadata = (rule: AsyncRule | undefined): rule is AsyncRuleMetadata => typeof rule === 'object' && rule != null;
 
 /* Validate rule for a property */
 const validateRule = function (
@@ -315,18 +328,25 @@ const validateAsyncRule = async function (
     const nsKey = nameSpace != null && nameSpace.trim().length > 0 ? `${nameSpace}.${key}` : undefined;
 
     let usedKey = key;
-    let validator: AsyncValidatorFn | undefined;
+    let configuredRule: AsyncRule | undefined;
     const contextPath = nameSpace === 'root' ? key : (nsKey ?? key);
     const wildcardKey = nsKey != null ? findWildcardRuleKey(modelConfig.asyncRules, nsKey) : undefined;
     if (nsKey != null && modelConfig.asyncRules[nsKey] != null) {
-        validator = modelConfig.asyncRules[nsKey];
+        configuredRule = modelConfig.asyncRules[nsKey];
         usedKey = nsKey;
     } else if (nsKey != null && wildcardKey != null) {
-        validator = modelConfig.asyncRules[wildcardKey];
+        configuredRule = modelConfig.asyncRules[wildcardKey];
         usedKey = nsKey;
     } else if (modelConfig.asyncRules[key] != null) {
-        validator = modelConfig.asyncRules[key];
+        configuredRule = modelConfig.asyncRules[key];
         usedKey = key;
+    }
+
+    const metadata = isAsyncRuleMetadata(configuredRule) ? configuredRule : undefined;
+    const validator = typeof configuredRule === 'function' ? configuredRule : metadata?.validator;
+
+    if (metadata?.required === true && value == null) {
+        throw new Error(`Validation error [${usedKey}]: Value is required`);
     }
 
     if (validator == null) {
@@ -894,6 +914,19 @@ const generateDynamicClassInstance = function (
           getIndex() {
             return this.#index;
           }
+
+                    getRules() {
+                        const rules = {};
+                        Object.keys(this.#modelConfig.rules).forEach((key) => {
+                                const rule = this.#modelConfig.rules[key];
+                                rules[key] = rule != null && typeof rule === 'object' ? { ...rule } : rule;
+                        });
+                        return rules;
+                    }
+
+                    getAsyncRules() {
+                        return { ...this.#modelConfig.asyncRules };
+                    }
 
           updateRules(rules, options = {}) {
             const nextRules = options.mergeRules ? { ...this.#modelConfig.rules, ...rules } : { ...rules };
