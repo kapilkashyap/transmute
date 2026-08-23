@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Validation Ergonomics</title>
+    <link rel="stylesheet" href="../styles.css" />
+</head>
+
+<body>
+    <main>
+        <header>
+        <div class="back-breadcrumb"><a class="back" href="/">&larr; Examples</a> / Validation Ergonomics</div>
+            <h1>Small rules, clear intent.</h1>
+            <p>Explore the validation ergonomics: compose reusable checks, protect metadata, validate
+                a whole collection, and inspect asynchronous rules.</p>
+        </header>
+        <div class="grid">
+            <div class="fixed-list">
+                <section class="wide paddingTopZero">
+                    <h2>Current model JSON</h2>
+                    <pre id="model-json"></pre>
+                </section>
+                <section class="wide paddingTopZero">
+                    <h2>Current rules</h2>
+                    <pre id="rules-json">
+{
+  rules: {
+    id: { immutable: true },
+    name: {
+      required: true,
+      validator: (value) => {
+        return String(value).trim().length > 2
+          || 'Name must be longer than two characters';
+      }
+    },
+    password: allOf(
+      (value) => {
+        return String(value).trim().length > 0
+          || 'Password is required';
+        },
+        (value) => {
+          return String(value).length >= 8
+            || 'Password must be at least 8 characters';
+        }
+    ),
+    contacts: (value) => {
+      return phonePattern.test(String(value))
+        || 'Contact must be of format +CC-XXXXX-XXXXX';
+    },
+    'contacts[]': (value) => {
+      return value.length >= 2
+        || 'At least two contacts are required';
+    },
+  },
+  asyncRules: {
+    username: async (value) => {
+      await new Promise((resolve) => {
+        setTimeout(resolve, 1500);
+      });
+      return value !== 'existing-name'
+        || 'Username is already taken';
+    }
+  }
+}
+                    </pre>
+                </section>
+            </div>
+            <div class="fixed-list scrollable">
+                <section class="sectionWithBorder">
+                    <p class="eyebrow">01 / composition</p>
+                    <h2>All of these checks</h2>
+                    <p class="note">The password rule combines presence and length with <code>allOf</code>.</p>
+                    <input id="password" type="password" value="1234567" />
+                    <div class="actions"><button id="check-password">Run allOf</button></div>
+                    <p id="password-status" class="status" aria-live="polite"></p>
+                </section>
+                <section class="sectionWithBorder">
+                    <p class="eyebrow">02 / metadata</p>
+                    <h2>Constraints as data</h2>
+                    <p class="note">The ID is immutable; the name is required and custom-validated.</p>
+                    <label class="label" for="name">Name</label>
+                    <input id="name" value="Ada Lovelace" />
+                    <div class="actions">
+                        <button id="update-name">Update name</button>
+                        <button id="change-id" class="secondary">Attempt ID change</button>
+                    </div>
+                    <p id="metadata-status" class="status" aria-live="polite"></p>
+                </section>
+                <section class="sectionWithBorder">
+                    <p class="eyebrow">03 / collection scope</p>
+                    <h2>Element or array?</h2>
+                    <p class="note">The unsuffixed rule checks each phone. The <code>[]</code> rule checks the complete
+                        collection.</p>
+                    <label class="label" for="update-contact-1">Contact #1</label>
+                    <input id="contact-1" value="+91-33333-33333" />
+                    <label class="label" for="contact-2">Contact #2</label>
+                    <input id="contact-2" value="+91-44444-44444" />
+                    <div class="actions">
+                        <button id="update-contact-1">Update #1</button>
+                        <button id="update-contact-2">Update #2</button>
+                        <button id="update-both-contacts" class="secondary">Update both</button>
+                    </div>
+                    <p id="collection-status" class="status" aria-live="polite"></p>
+                </section>
+                <section class="sectionWithBorder">
+                    <p class="eyebrow">04 / async + introspection</p>
+                    <h2>Before the boundary</h2>
+                    <p class="note">The simulated remote rule runs only through <code>validateAsync()</code>.</p>
+                    <label class="label" for="username">Username</label>
+                    <input id="username" value="existing-name" />
+                    <div class="actions">
+                        <button id="run-async">Validate asynchronously</button>
+                        <button id="inspect" class="secondary">Inspect rules</button>
+                    </div>
+                    <p id="async-status" class="status" aria-live="polite"></p>
+                    <pre id="inspection">No rule snapshot requested yet.</pre>
+                </section>
+            </div>
+        </div>
+    </main>
+    <script src="/dist/index.global.js"></script>
+    <script src="./src/main.js"></script>
+</body>
+
+</html>

@@ -58,5 +58,16 @@ export default [
                 }
             ]
         }
+    },
+    {
+        // In-browser demos load React/ReactDOM from a CDN and the library UMD bundle as globals.
+        files: ['examples/**/*.js', 'examples/**/*.jsx'],
+        languageOptions: {
+            globals: {
+                React: 'readonly',
+                ReactDOM: 'readonly',
+                lib: 'readonly'
+            }
+        }
     }
 ];
